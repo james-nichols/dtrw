@@ -69,9 +69,28 @@ class DTRW_with_reactions(object):
         
         # How many time steps have we had?
         self.n = self.X.shape[2] + 1
-       
-        self.update_theta()
         
+        next_Q = np.zeros(self.Q.shape[:2] 
+        for i in range(self.Q.shape[0]):
+            for j in range(self.Q.shape[1]):
+                next_Q(i,j) = sum(self.Q[i, j, :] * self.psi[:self.n][::-1] * self.theta[:self.n][::-1])
+        
+        # Now apply lambda jump probabilities
+        next_Q = sp.signal.convolve2d(next_Q, self.lam, 'same')
+        
+        # Add Q to the list of Qs over time
+        Q = np.dstack((Q, next_Q))
+
+        # Now find X from Q 
+        next_X = np.zeros(self.Q.shape[:2])
+        for i in range(self.Q.shape[0]):
+            for j in range(self.Q.shape[1]):
+                next_X(i,j) = sum(self.Q[i, j, :] * self.Phi[:self.n+1][::-1] * self.theta[:self.n+1][::-1])
+        
+        X = np.dstack((X, next_X))
+
+         
+        """
         # outward flux 
         flux = np.zeros(self.X.shape[:2])
 
@@ -84,5 +103,5 @@ class DTRW_with_reactions(object):
        
         # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
         X = np.dstack((X, next_X))
-
+        """
 
