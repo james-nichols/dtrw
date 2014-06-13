@@ -23,11 +23,12 @@ nu = 0.0 #0.0005
 
 history_length = 40
 
-dtrw = DTRW(X_init, N, dT, tau, omega, nu, history_length)
-dtrw_X = DTRW(X_init, N, dT, tau, omega, nu, history_length)
+dtrw = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length)
+dtrw_X = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length)
 
 print dtrw.psi, dtrw.psi.sum()
 print dtrw.Phi
+print dtrw.K
 
 dtrw.solve_all_steps()
 dtrw_X.solve_all_steps_with_K()
@@ -85,17 +86,11 @@ def update(i, ax1, ax2, ax3, fig):
     
     return wframe, wframe2, wframe3
 
-def update2(i, ax, fig):
-    ax.cla()
-    wframe = ax.plot_wireframe(Xs, Ys, dtrw.X[:,:,i] - dtrw_sub.X[:,:,i], rstride=5, cstride=5, color='Red')
-    ax.set_zlim(-0.1, 1.1 * (dtrw.X[:,:,i]-dtrw_sub.X[:,:,i]).max())
-    return wframe,
-
 # call the animator. blit=True means only re-draw the parts that have changed.
 anim = animation.FuncAnimation(fig, update, 
         frames=N, 
         fargs=(ax1, ax2, ax3, fig), interval=100)
 
-anim.save('basic_animation.mp4', fps=30)
+anim.save('compare_diffusion_methods.mp4', fps=24)
 plt.show()
 

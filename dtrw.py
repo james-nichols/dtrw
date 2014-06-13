@@ -13,14 +13,11 @@ class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X, N, dT, tau, omega, nu, hist_length=2):
+    def __init__(self, X, N, omega, nu, hist_length):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         self.X = np.dstack([X])
         self.Q = np.dstack([X])
         self.N = N
-        self.dT = dT
-        self.tau = tau
-
         self.history_length = hist_length
 
         # How many time steps have preceded the current one?
@@ -29,45 +26,33 @@ class DTRW(object):
         self.calc_lambda()
         self.calc_psi()
         self.calc_Phi()
-        self.calc_omega(omega * self.dT)
+        self.calc_omega(omega)
         self.calc_theta()
-        self.calc_nu(nu * self.dT)
+        self.calc_nu(nu)
         
         self.calc_mem_kernel()
     
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
-         
-        # In the exponential case it's quite simply...
-        self.K[1] = (1.0 - np.exp(-self.dT / self.tau))
 
     def calc_lambda(self):
         """ Basic equal finite mean diffusion """
-        self.lam = np.array( [[0.00, 0.24, 0.00],
-                              [0.24, 0.00, 0.26],
-                              [0.00, 0.26, 0.00]])
+        self.lam = np.array( [[0.00, 0.00, 0.00],
+                              [0.00, 1.00, 0.00],
+                              [0.00, 0.00, 0.00]])
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
-        t = np.array(range(self.history_length+1)) * self.dT
-        
         self.psi = np.zeros(self.history_length+1) 
-        self.psi[1:] = np.exp(-t[:-1] / self.tau)
-        self.psi[1:-1] -= np.exp(-t[1:-1] / self.tau)
 
     def calc_Phi(self):
         """PDF of not jumping up to time n"""
         self.Phi = np.ones(self.history_length+1)
-        for i in range(self.history_length+1):
-            # unsure about ending index - might need extra point...
-            self.Phi[i] -= sum(self.psi[1:i+1])
 
     def calc_omega(self, om):
         """ Likelihood of surviving between n and n+1"""
-
-        # For now just constant for the length of time
-        self.omega = (1.0 - np.exp(-om * self.dT)) * np.ones(self.N)
+        self.omega = om * np.ones(self.N)
 
     def calc_theta(self):
         """Likelihood of surviving between 0 and n"""
@@ -79,8 +64,6 @@ class DTRW(object):
     
     def calc_nu(self, birth):
         """Likelihood of birth happening at i"""
-        
-        # For now just constant for the length of time
         self.nu = birth * np.ones(self.N)
     
     def time_step(self):
@@ -154,16 +137,61 @@ class DTRW(object):
         for i in range(self.N-1):
             self.time_step_with_K()
 
+class DTRW_diffusive(DTRW):
+
+    def __init__(self, X, N, dT, tau, omega, nu, history_length=2):
+        
+        self.dT = dT
+        self.tau = tau
+        
+        super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length)
+
+    def calc_lambda(self):
+        """ Basic equal finite mean diffusion """
+        self.lam = np.array( [[0.00, 0.25, 0.00],
+                              [0.25, 0.00, 0.25],
+                              [0.00, 0.25, 0.00]])
+
+    def calc_psi(self):
+        """Waiting time distribution for spatial jumps"""
+        t = np.array(range(self.history_length+1)) * self.dT
+        
+        self.psi = np.zeros(self.history_length+1) 
+        self.psi[1:] = np.exp(-t[:-1] / self.tau)
+        self.psi[1:-1] -= np.exp(-t[1:-1] / self.tau)
+
+    def calc_Phi(self):
+        """PDF of not jumping up to time n"""
+        self.Phi = np.ones(self.history_length+1)
+        for i in range(self.history_length+1):
+            # unsure about ending index - might need extra point...
+            self.Phi[i] -= sum(self.psi[1:i+1])
+    
+    def calc_mem_kernel(self):
+        """Once off call to calculate the memory kernel and store it"""
+        self.K = np.zeros(self.history_length+1)
+         
+        # In the exponential case it's quite simply...
+        self.K[1] = (1.0 - np.exp(-self.dT / self.tau))
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X, N, dT, tau, omega, nu, history_length):
-        super(DTRW_subdiffusive, self).__init__(X, N, dT, tau, omega, nu, history_length)
+    def __init__(self, X, N, alpha, omega, nu, history_length):
+        
+        self.alpha = alpha
+        
+        super(DTRW_subdiffusive, self).__init__(X, N, omega, nu, history_length)
+
+    def calc_lambda(self):
+        """ Basic equal finite mean diffusion """
+        self.lam = np.array( [[0.00, 0.25, 0.00],
+                              [0.25, 0.00, 0.25],
+                              [0.00, 0.25, 0.00]])
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
         tn = np.array(range(self.history_length+1))
-        self.psi = pow(-1,tn+1) * scipy.special.gamma(self.tau + 1) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.tau - tn + 1))
+        self.psi = pow(-1,tn+1) * scipy.special.gamma(self.alpha + 1) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn + 1))
         self.psi[0] = 0.
         # Highly dubious: Normalising psi so that we conservation of particles
         self.psi[-1] = 1.0 - self.psi[:-1].sum()
@@ -171,7 +199,7 @@ class DTRW_subdiffusive(DTRW):
     def calc_Phi(self):
         """PDF of not jumping up to time n"""
         tn = np.array(range(self.history_length+1))
-        self.Phi = pow(-1,tn) * scipy.special.gamma(self.tau ) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.tau - tn))
+        self.Phi = pow(-1,tn) * scipy.special.gamma(self.alpha ) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn))
         self.Phi[0] = 1.
         #self.Phi = np.ones(N)
         #for i in range(N):
@@ -183,9 +211,9 @@ class DTRW_subdiffusive(DTRW):
         self.K = np.zeros(self.history_length+1)
         
         self.K[0] = 0.0
-        self.K[1] = scipy.special.gamma(self.tau) / (scipy.special.gamma(self.tau - 1.0) * 2.0) + 1.0
+        self.K[1] = scipy.special.gamma(self.alpha) / (scipy.special.gamma(self.alpha - 1.0) * scipy.special.gamma(2.0) ) + 1.0
 
         for i in range(2,self.history_length+1):
-            self.K[i] = (float(i) + self.tau - 2.0) * self.K[i-1] / float(i)
+            self.K[i] = (float(i) + self.alpha - 2.0) * self.K[i-1] / float(i)
     
 
