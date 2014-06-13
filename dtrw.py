@@ -7,11 +7,6 @@ import scipy.signal
 import scipy.special
 from itertools import *
 
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-from matplotlib import animation
-from matplotlib import cm
-
 import pdb
 
 class DTRW(object):

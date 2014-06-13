@@ -3,12 +3,17 @@
 import numpy as np
 from dtrw import * 
 
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+from matplotlib import animation
+from matplotlib import cm
+
 X_init = np.zeros([100, 100])
 X_init[50,50] = 1.0
 X_init[50,10] = 1.0
 X_init[80,85] = 1.0
 
-N = 1000
+N = 10
 dT = 0.5
 tau = 0.5
 alpha = 0.5
