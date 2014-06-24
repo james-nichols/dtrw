@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import numpy as np
+import time
 from dtrw import *
 
 from mpl_toolkits.mplot3d import Axes3D
@@ -13,13 +14,13 @@ X_init[50,50] = 1.0
 X_init[50,10] = 1.0
 X_init[80,85] = 1.0
 
-N = 10
+N = 1000
+history_length = N
 dT = 0.5
 alpha = 0.5
 omega = 0.0 #0.05
 nu = 0.0 #0.0005
 
-history_length = 40
 
 dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length)
 dtrw_sub_X = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length)
@@ -30,8 +31,13 @@ print dtrw_sub.K
 
 #dtrw.solve_all_steps()
 #dtrw_X.solve_all_steps_with_K()
+start = time.clock()
 dtrw_sub.solve_all_steps()
+mid = time.clock()
 dtrw_sub_X.solve_all_steps_with_K()
+end = time.clock()
+
+print "Time for Q method: ", mid - start, ", time for K method: ", end - mid
 
 xs = np.linspace(0, 1, X_init.shape[0])
 ys = np.linspace(0, 1, X_init.shape[1])
@@ -83,7 +89,9 @@ def update(i, ax1, ax2, ax3, fig):
     #cset = ax.contour(Xs, Ys, dtrw.X[:,:,i], zdir='x', offset=0., cmap=cm.coolwarm)
     #cset = ax.contour(Xs, Ys, dtrw.X[:,:,i], zdir='y', offset=1., cmap=cm.coolwarm)
     #ax.set_zlim(-0.1 * plot_max,1.1 * plot_max)
-   
+  
+    #print dtrw_sub.X[47:53,47:53,i], dtrw_sub.X[:,:,i].sum()
+    #print dtrw_sub_X.X[47:53,47:53,i], dtrw_sub_X.X[:,:,i].sum()
     #print dtrw.X[:,:,i].sum(), dtrw_sub.X[:,:,i].sum()
 
     return wframe, wframe2, wframe3
