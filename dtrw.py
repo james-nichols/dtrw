@@ -74,12 +74,8 @@ class DTRW(object):
        
         lookback = min( self.n, self.history_length )
 
-        next_Q = np.zeros(self.Q.shape[:2]) 
-        for i in range(self.Q.shape[0]):
-            for j in range(self.Q.shape[1]):
-                # Note from this equation that psi[0] is applied to Q[n], that is psi[0] is equivalent to psi(0) from the paper... ((1))
-                next_Q[i,j] = sum(self.Q[i, j, -lookback:] * self.psi[1:lookback+1][::-1] * self.theta[-lookback:]) + self.nu[self.n] #* self.X[i,j,-1]
-            
+        # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
+        next_Q = (self.Q[:, :, -lookback:] * self.psi[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2) + self.nu[self.n]
         # Now apply lambda jump probabilities
         next_Q = sp.signal.convolve2d(next_Q, self.lam, 'same')
         
@@ -94,13 +90,8 @@ class DTRW(object):
 
         lookback = min( self.n+1, self.history_length )
         
-        # Now find X from Q 
-        next_X = np.zeros(self.Q.shape[:2])
-        for i in range(self.Q.shape[0]):
-            for j in range(self.Q.shape[1]):
-                # Similarly to point ((1)), here Phi[0] is applied to Q[n+1], therefore Phi[0] is equivalent to Phi(0) from the paper ((2))               
-                next_X[i,j] = sum(self.Q[i, j, -lookback:] * self.Phi[:lookback][::-1] * self.theta[-lookback:])
-        
+        # Matrix methods to calc X as in eq. (11) in the J Comp Phys paper
+        next_X = (self.Q[:, :, -lookback:] * self.Phi[:lookback][::-1] * self.theta[-lookback:]).sum(2)
         self.X = np.dstack([self.X, next_X])
         
     def time_step_with_K(self):
