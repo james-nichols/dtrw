@@ -111,13 +111,8 @@ class DTRW(object):
         self.n = self.X.shape[2] 
         lookback = min(self.n, self.history_length)
 
-        # outward flux 
-        flux = np.zeros(self.X.shape[:2])
-    
-        for i in range(self.X.shape[0]):
-            for j in range(self.X.shape[1]):
-                # Note that we are assuming the K(0)=0 here, as we only apply K(1) onwards to X...
-                flux[i,j] = sum(self.X[i, j, -lookback:] * self.K[1:lookback+1][::-1] * self.theta[-lookback:])
+        # Matrix multiply to calculate flux, then sum in last dimension (2), to get outward flux
+        flux = (self.X[:, :, -lookback:] * self.K[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2)
         
         # update the field
         next_X = self.X[:,:,-1] + sp.signal.convolve2d(flux, self.lam, 'same') - flux - self.omega[self.n] * self.X[:,:,-1]
