@@ -190,30 +190,42 @@ class DTRW_subdiffusive(DTRW):
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
-        tn = np.array(range(self.history_length+1))
-        self.psi = pow(-1,tn+1) * scipy.special.gamma(self.alpha + 1) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn + 1))
+        #tn = np.array(range(self.history_length+1))
+        #self.psi = pow(-1,tn+1) * scipy.special.gamma(self.alpha + 1) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn + 1))
+        #psi[0] = 0.
+        
+        self.psi = np.zeros(self.history_length+1)
         self.psi[0] = 0.
+        
+        self.psi[1] = self.alpha
+        for i in range(2,self.history_length+1):
+            self.psi[i] = -self.psi[i-1] * (self.alpha - float(i) + 1.) / float(i)
+        
         # Highly dubious: Normalising psi so that we conservation of particles
-        self.psi[-1] = 1.0 - self.psi[:-1].sum()
-         
+        # self.psi[-1] = 1.0 - self.psi[:-1].sum()
+        
+    
     def calc_Phi(self):
         """PDF of not jumping up to time n"""
-        tn = np.array(range(self.history_length+1))
-        self.Phi = pow(-1,tn) * scipy.special.gamma(self.alpha ) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn))
-        self.Phi[0] = 1.
-        #self.Phi = np.ones(N)
-        #for i in range(N):
+        #tn = np.array(range(self.history_length+1))
+        #self.Phi = pow(-1,tn) * scipy.special.gamma(self.alpha ) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn))
+        #self.Phi[0] = 1.
+
+        self.Phi = np.ones(self.history_length+1)
+        self.Phi[1] = 1.0 - self.alpha
+        for i in range(2, self.history_length+1):
+            self.Phi[i] = - self.Phi[i-1] * (self.alpha - float(i)) / float(i)
+        
+        #for i in range(self.history_length+1):
             # unsure about ending index - might need extra point...
-        #    self.Phi[i] -= sum(self.psi[:i])
+        #    self.Phi[i] = 1.0-sum(self.psi[:i+1])
 
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
         
         self.K[0] = 0.0
-        self.K[1] = scipy.special.gamma(self.alpha) / (scipy.special.gamma(self.alpha - 1.0) * scipy.special.gamma(2.0) ) + 1.0
-
-        for i in range(2,self.history_length+1):
+        self.K[1] = self.alpha 
+        self.K[2] = self.alpha * 0.5 * (self.alpha - 1.0)
+        for i in range(3,self.history_length+1):
             self.K[i] = (float(i) + self.alpha - 2.0) * self.K[i-1] / float(i)
-    
-
