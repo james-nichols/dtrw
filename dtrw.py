@@ -37,10 +37,22 @@ class DTRW(object):
         self.K = np.zeros(self.history_length+1)
 
     def calc_lambda(self):
-        """ Basic equal finite mean diffusion """
-        self.lam = np.array( [[0.00, 0.00, 0.00],
-                              [0.00, 1.00, 0.00],
-                              [0.00, 0.00, 0.00]])
+        """ Basic equal prob diffusion. NOTE: boundary conditions are not taken care of here! """
+        # New regime - create a sequence of probabilities for left, right, up, down (in that order)
+        self.lam = np.ones(self.X[:,:,0].shape)
+        self.lam = np.dstack([self.lam, self.lam]) 
+
+        # now - if there's the second dimension, then we add the up & right properties
+        if self.X.shape[0] > 1:
+            # up probability
+            self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
+            # down probability
+            self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
+            self.lam = 0.25 * self.lam
+        else:
+            # if there isn't the second dimension, prob's are 0.5
+            self.lam = 0.5 * self.lam
+
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -75,10 +87,21 @@ class DTRW(object):
         lookback = min( self.n, self.history_length )
 
         # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
-        next_Q = (self.Q[:, :, -lookback:] * self.psi[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2) + self.nu[self.n]
-        # Now apply lambda jump probabilities
-        next_Q = sp.signal.convolve2d(next_Q, self.lam, 'same')
+        flux = (self.Q[:, :, -lookback:] * self.psi[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2) + self.nu[self.n]
         
+        # Now apply lambda jump probabilities
+        next_Q = np.zeros(self.X[:,:,0].shape)
+        
+        # First multiply by all the left jump probabilities
+        next_Q[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
+        # then all the right jump 
+        next_Q[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
+        if self.X.shape[0] > 1:
+            # The up jump
+            next_Q[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
+            # The down jump
+            next_Q[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+
         # Applying zero-flux boundary condition
         #next_Q[:, 0] = next_Q[:, 1]
         #next_Q[0, :] = next_Q[1, :]
@@ -102,12 +125,22 @@ class DTRW(object):
         self.n = self.X.shape[2] 
         lookback = min(self.n, self.history_length)
 
-        # Matrix multiply to calculate flux, then sum in last dimension (2), to get outward flux
+        # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
         flux = (self.X[:, :, -lookback:] * self.K[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2)
         
-        # update the field
-        next_X = self.X[:,:,-1] + sp.signal.convolve2d(flux, self.lam, 'same') - flux - self.omega[self.n] * self.X[:,:,-1]
-      
+        next_X = self.X[:,:,-1] - flux - self.omega[self.n] * self.X[:,:,-1]
+
+        # Now we add the spatial jumps
+        # First multiply by all the left jump probabilities
+        next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
+        # then all the right jump 
+        next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
+        if self.X.shape[0] > 1:
+            # The up jump
+            next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
+            # The down jump
+            next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+               
         # BUT WHAT ABOUT THE BOUNDARY CONDITIONS!!!!!!!
 
         # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
@@ -131,12 +164,6 @@ class DTRW_diffusive(DTRW):
         self.tau = tau
         
         super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length)
-
-    def calc_lambda(self):
-        """ Basic equal finite mean diffusion """
-        self.lam = np.array( [[0.00, 0.25, 0.00],
-                              [0.25, 0.00, 0.25],
-                              [0.00, 0.25, 0.00]])
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -167,12 +194,6 @@ class DTRW_subdiffusive(DTRW):
         self.alpha = alpha
         
         super(DTRW_subdiffusive, self).__init__(X, N, omega, nu, history_length)
-
-    def calc_lambda(self):
-        """ Basic equal finite mean diffusion """
-        self.lam = np.array( [[0.00, 0.25, 0.00],
-                              [0.25, 0.00, 0.25],
-                              [0.00, 0.25, 0.00]])
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
