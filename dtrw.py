@@ -13,17 +13,18 @@ class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X, N, omega, nu, hist_length):
+    def __init__(self, X, N, omega, nu, history_length = 2, beta = 0., potential = np.array([])):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         self.X = np.dstack([X])
         self.Q = np.dstack([X])
         self.N = N
-        self.history_length = hist_length
+        self.history_length = history_length
 
         # How many time steps have preceded the current one?
         self.n = 0 # self.X.shape[-1]
-
-        self.calc_lambda()
+    
+        self.beta = beta
+        self.calc_lambda(potential)
         self.calc_psi()
         self.calc_Phi()
         self.calc_omega(omega)
@@ -36,22 +37,60 @@ class DTRW(object):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
 
-    def calc_lambda(self):
+    def calc_lambda(self, potential):
         """ Basic equal prob diffusion. NOTE: boundary conditions are not taken care of here! """
         # New regime - create a sequence of probabilities for left, right, up, down (in that order)
-        self.lam = np.ones(self.X[:,:,0].shape)
-        self.lam = np.dstack([self.lam, self.lam]) 
+        
+        if potential.size:
+            if potential.shape != self.X[:,:,0].shape and potential.shape != (self.X[:,:,0].shape + (2,2)):
+                # We allow the potential to have a to allow for escape fromt the domain
+                raise NameError("potential not the same shape as initial conditions") 
 
-        # now - if there's the second dimension, then we add the up & right properties
-        if self.X.shape[0] > 1:
-            # up probability
-            self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
-            # down probability
-            self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
-            self.lam = 0.25 * self.lam
+            # Calculate the transition probabilities Boltzmann style based on potentials.
+            boltz_func = np.exp(- self.beta * potential)
+            boltz_denom = np.zeros(boltz_func.shape)
+            boltz_denom[:,:-1] += boltz_func[:,1:]
+            boltz_denom[:,1:] += boltz_func[:,:-1]
+            if self.X.shape[0] > 1:
+                boltz_denom[:-1,:] += boltz_func[1:,:]
+                boltz_denom[1:,:] += boltz_func[:-1,:]
+
+            # Now calculate the left, right (and if 2D, up and down) probabilities
+            pdb.set_trace() 
+            self.lam = np.zeros(self.X[:,:,0].shape)
+            self.lam = np.dstack([self.lam])
+
+            self.lam[:,1:,0] += boltz_func[:,:-1] / boltz_denom[:,1:]
+            self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
+            self.lam[:,:-1,1] += boltz_func[:,1:] / boltz_denom[:,:-1]
+
+            if self.X.shape[0] > 1:
+                self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
+                self.lam[1:,:,2] += boltz_func[:-1,:] / boltz_denom[1:,:]
+                self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
+                self.lam[:-1,:,3] += boltz_func[1:,:] / boltz_denom[:-1,:]
+        
+            if False:
+                # Fill in the boundary conditions to allow for jumps out of the region
+                self.lam[:,1,0] = 1.0 - (self.lam[:,1,1] + self.lam[:,1,2] + self.lam[:,1,3])
+                self.lam[:,-1,1] = 1.0 - (self.lam[:,-1,0] + self.lam[:,-1,2] + self.lam[:,-1,3]) 
+                self.lam[1,:,2] = 1.0 - (self.lam[1,:,0] + self.lam[1,:,1] + self.lam[1,:,3]) 
+                self.lam[-1,:,3] = 1.0 - (self.lam[-1,:,0] + self.lam[-1,:,1] + self.lam[-1,:,2]) 
+
         else:
-            # if there isn't the second dimension, prob's are 0.5
-            self.lam = 0.5 * self.lam
+            self.lam = np.ones(self.X[:,:,0].shape)
+            self.lam = np.dstack([self.lam, self.lam]) 
+
+            # now - if there's the second dimension, then we add the up & right properties
+            if self.X.shape[0] > 1:
+                # up probability
+                self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
+                # down probability
+                self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
+                self.lam = 0.25 * self.lam
+            else:
+                # if there isn't the second dimension, prob's are 0.5
+                self.lam = 0.5 * self.lam
 
 
     def calc_psi(self):
@@ -158,12 +197,12 @@ class DTRW(object):
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X, N, dT, tau, omega, nu, history_length=2):
+    def __init__(self, X, N, dT, tau, omega, nu, history_length=2, beta = 0., potential = np.array([])):
         
         self.dT = dT
         self.tau = tau
         
-        super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length)
+        super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length, beta, potential)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -189,11 +228,11 @@ class DTRW_diffusive(DTRW):
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X, N, alpha, omega, nu, history_length):
+    def __init__(self, X, N, alpha, omega, nu, history_length, beta = 0., potential = np.array([])):
         
         self.alpha = alpha
         
-        super(DTRW_subdiffusive, self).__init__(X, N, omega, nu, history_length)
+        super(DTRW_subdiffusive, self).__init__(X, N, omega, nu, history_length, beta, potential)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
