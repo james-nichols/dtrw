@@ -13,12 +13,13 @@ class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X, N, omega, nu, history_length = 2, beta = 0., potential = np.array([])):
+    def __init__(self, X, N, omega, nu, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         self.X = np.dstack([X])
         self.Q = np.dstack([X])
         self.N = N
         self.history_length = history_length
+        self.is_periodic = is_periodic
 
         # How many time steps have preceded the current one?
         self.n = 0 # self.X.shape[-1]
@@ -42,33 +43,49 @@ class DTRW(object):
         # New regime - create a sequence of probabilities for left, right, up, down (in that order)
         
         if potential.size:
-            if potential.shape != self.X[:,:,0].shape and potential.shape != (self.X[:,:,0].shape + (2,2)):
-                # We allow the potential to have a to allow for escape fromt the domain
+            if potential.size != self.X[:,:,0].size: # and potential.shape != (self.X[:,:,0].shape + (2,2)):
+                # NOT CURRENTLY TRUE BUT MIGHT BE AN OPTION: We allow the potential to have a to allow for escape fromt the domain
                 raise NameError("potential not the same shape as initial conditions") 
 
+            if len(potential.shape) == 1: # As np.dstack introduces two more dimensions, in the 1-D case we need to as well
+                potential = potential[np.newaxis]
             # Calculate the transition probabilities Boltzmann style based on potentials.
-            boltz_func = np.exp(- self.beta * potential)
+            boltz_func = np.exp(-self.beta * potential)
             boltz_denom = np.zeros(boltz_func.shape)
             boltz_denom[:,:-1] += boltz_func[:,1:]
             boltz_denom[:,1:] += boltz_func[:,:-1]
+            if self.is_periodic:
+                boltz_denom[:,-1] += boltz_func[:,0]
+                boltz_denom[:,0] += boltz_func[:,-1]
             if self.X.shape[0] > 1:
                 boltz_denom[:-1,:] += boltz_func[1:,:]
                 boltz_denom[1:,:] += boltz_func[:-1,:]
+                if self.is_periodic:
+                    boltz_denom[-1,:] += boltz_func[0,:]
+                    boltz_denom[0,:] += boltz_func[-1,:]
 
             # Now calculate the left, right (and if 2D, up and down) probabilities
-            pdb.set_trace() 
             self.lam = np.zeros(self.X[:,:,0].shape)
+            # left
             self.lam = np.dstack([self.lam])
-
             self.lam[:,1:,0] += boltz_func[:,:-1] / boltz_denom[:,1:]
+            # right
             self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
             self.lam[:,:-1,1] += boltz_func[:,1:] / boltz_denom[:,:-1]
+            if self.is_periodic:
+                self.lam[:,0,0] += boltz_func[:,-1] / boltz_denom[:,0]
+                self.lam[:,-1,1] += boltz_func[:,0] / boltz_denom[:,-1]
 
             if self.X.shape[0] > 1:
+                # up
                 self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
                 self.lam[1:,:,2] += boltz_func[:-1,:] / boltz_denom[1:,:]
+                # down
                 self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
                 self.lam[:-1,:,3] += boltz_func[1:,:] / boltz_denom[:-1,:]
+                if self.is_periodic:
+                    self.lam[0,:,2] += boltz_func[-1,:] / boltz_denom[0,:]
+                    self.lam[-1,:,3] += boltz_func[0,:] / boltz_denom[-1,:]
         
             if False:
                 # Fill in the boundary conditions to allow for jumps out of the region
@@ -135,11 +152,17 @@ class DTRW(object):
         next_Q[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
         # then all the right jump 
         next_Q[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
+        if self.is_periodic:
+            next_Q[:,-1] += self.lam[:,0,0] * flux[:,0]
+            next_Q[:,0] += self.lam[:,-1,1] * flux[:,-1]
         if self.X.shape[0] > 1:
             # The up jump
             next_Q[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
             # The down jump
             next_Q[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+            if self.is_periodic:
+                next_Q[-1,:] += self.lam[0,:,2] * flux[0,:]
+                next_Q[0,:] += self.lam[-1,:,3] * flux[-1,:]
 
         # Applying zero-flux boundary condition
         #next_Q[:, 0] = next_Q[:, 1]
@@ -174,11 +197,17 @@ class DTRW(object):
         next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
         # then all the right jump 
         next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
+        if self.is_periodic:
+            next_X[:,-1] += self.lam[:,0,0] * flux[:,0]
+            next_X[:,0] += self.lam[:,-1,1] * flux[:,-1]
         if self.X.shape[0] > 1:
             # The up jump
             next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
             # The down jump
             next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+            if self.is_periodic:
+                next_X[-1,:] += self.lam[0,:,2] * flux[0,:]
+                next_X[0,:] += self.lam[-1,:,3] * flux[-1,:]
                
         # BUT WHAT ABOUT THE BOUNDARY CONDITIONS!!!!!!!
 
@@ -193,16 +222,18 @@ class DTRW(object):
     def solve_all_steps_with_K(self):
         """Solve the time steps using the memory kernel, available only if we know how to calculate K"""
         for i in range(self.N-1):
+            if i % 100 == 0:
+                print "Solved to step", i
             self.time_step_with_K()
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X, N, dT, tau, omega, nu, history_length=2, beta = 0., potential = np.array([])):
+    def __init__(self, X, N, dT, tau, omega, nu, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
         
         self.dT = dT
         self.tau = tau
         
-        super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length, beta, potential)
+        super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length, beta, potential, is_periodic)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -228,11 +259,11 @@ class DTRW_diffusive(DTRW):
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X, N, alpha, omega, nu, history_length, beta = 0., potential = np.array([])):
+    def __init__(self, X, N, alpha, omega, nu, history_length, beta = 0., potential = np.array([]), is_periodic=False):
         
         self.alpha = alpha
         
-        super(DTRW_subdiffusive, self).__init__(X, N, omega, nu, history_length, beta, potential)
+        super(DTRW_subdiffusive, self).__init__(X, N, omega, nu, history_length, beta, potential, is_periodic)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
