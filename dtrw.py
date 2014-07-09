@@ -228,34 +228,27 @@ class DTRW(object):
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X, N, dT, tau, omega, nu, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
-        
-        self.dT = dT
-        self.tau = tau
-        
+    def __init__(self, X, N, r, omega, nu, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
+        # Probability of jumping in one step 
+        self.r = r
+
         super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length, beta, potential, is_periodic)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
-        t = np.array(range(self.history_length+1)) * self.dT
-        
-        self.psi = np.zeros(self.history_length+1) 
-        self.psi[1:] = np.exp(-t[:-1] / self.tau)
-        self.psi[1:-1] -= np.exp(-t[1:-1] / self.tau)
+        self.psi = np.array([self.r * pow(1. - self.r, i-1) for i in range(self.history_length+1)])
+        self.psi[0] = 0.
 
     def calc_Phi(self):
         """PDF of not jumping up to time n"""
-        self.Phi = np.ones(self.history_length+1)
-        for i in range(self.history_length+1):
-            # unsure about ending index - might need extra point...
-            self.Phi[i] -= sum(self.psi[1:i+1])
+        self.Phi = np.array([pow(1. - self.r, i) for i in range(self.history_length+1)])
     
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
          
         # In the exponential case it's quite simply...
-        self.K[1] = (1.0 - np.exp(-self.dT / self.tau))
+        self.K[1] = self.r
 
 class DTRW_subdiffusive(DTRW):
 
