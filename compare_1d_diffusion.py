@@ -41,6 +41,10 @@ print "Subdiffusive sim with dT =", dT_sub, "N =", N_sub, "alpha =", alpha
 
 dtrw = DTRW_diffusive(X_init, N_diff, r, omega, nu, history_length_diff)
 dtrw_sub = DTRW_subdiffusive(X_init, N_sub, alpha, omega, nu, history_length_sub)
+
+print "Left jump probs: ", dtrw.lam[:,:,0]
+print "Right jump probs: ", dtrw.lam[:,:,1]
+
 dtrw.solve_all_steps()
 dtrw_sub.solve_all_steps()
 

@@ -134,8 +134,9 @@ class DTRW(object):
         """Likelihood of birth happening at i"""
         self.nu = birth * np.ones(self.N)
     
-    def time_step(self):
-        """Take a time step forward"""
+    def time_step_with_Q(self):
+        """Take a time step forward using arrival densities. NOTE in the diffusive case 
+        it is necessary to use a full history to get this one right"""
         
         # How many time steps have we had?
         self.n = self.X.shape[2] 
@@ -179,9 +180,9 @@ class DTRW(object):
         next_X = (self.Q[:, :, -lookback:] * self.Phi[:lookback][::-1] * self.theta[-lookback:]).sum(2)
         self.X = np.dstack([self.X, next_X])
         
-    def time_step_with_K(self):
+    def time_step(self):
         """ Step forwards directly with X using the memory kernel K, this
-            method is only available in cases where we can calculate K analytically"""
+            method is only available in cases where we can calculate K analytically!"""
  
         # How many time steps have we had?
         self.n = self.X.shape[2] 
@@ -214,17 +215,17 @@ class DTRW(object):
         # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
         self.X = np.dstack((self.X, next_X))
 
-    def solve_all_steps(self):
+    def solve_all_steps_with_Q(self):
 
         for i in range(self.N-1):
-            self.time_step()
+            self.time_step_with_Q()
     
-    def solve_all_steps_with_K(self):
+    def solve_all_steps(self):
         """Solve the time steps using the memory kernel, available only if we know how to calculate K"""
         for i in range(self.N-1):
             if i % 100 == 0:
                 print "Solved to step", i
-            self.time_step_with_K()
+            self.time_step()
 
 class DTRW_diffusive(DTRW):
 

@@ -9,18 +9,29 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib import cm
 
-X_init = np.zeros([100, 100])
+n_points = 100 
+L = 1.0
+dX = L / n_points
+
+X_init = np.zeros([n_points, n_points])
 X_init[50,50] = 1.0
 X_init[50,10] = 1.0
 X_init[80,85] = 1.0
 
-N = 100
+T = 0.01
+
+alpha = 0.75
+D_alpha = 0.05
+
+r = 0.8
+
+dT = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
+
+N = int(math.floor(T / dT))
 history_length = N
-dT = 0.5
-alpha = 0.5
+
 omega = 0.0 #0.05
 nu = 0.0 #0.0005
-
 
 dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length)
 dtrw_sub_X = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length)
@@ -28,16 +39,15 @@ dtrw_sub_X = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length)
 print dtrw_sub.psi, dtrw_sub.psi.sum()
 print dtrw_sub.Phi
 print dtrw_sub.K
+print "Solving for", N, "steps."
 
-#dtrw.solve_all_steps()
-#dtrw_X.solve_all_steps_with_K()
 start = time.clock()
 dtrw_sub.solve_all_steps()
 mid = time.clock()
-dtrw_sub_X.solve_all_steps_with_K()
+dtrw_sub_X.solve_all_steps_with_Q()
 end = time.clock()
 
-print "Time for Q method: ", mid - start, ", time for K method: ", end - mid
+print "Time for K method: ", mid - start, ", time for Q method: ", end - mid
 
 xs = np.linspace(0, 1, X_init.shape[0])
 ys = np.linspace(0, 1, X_init.shape[1])

@@ -8,30 +8,40 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib import cm
 
-X_init = np.zeros([100, 100])
+
+n_points = 100
+L = 1.0
+dX = L / n_points
+
+# Some arbitrary initial conditions
+X_init = np.zeros([n_points, n_points])
 X_init[50,50] = 1.0
 X_init[50,10] = 1.0
 X_init[80,85] = 1.0
 
-N = 1000
-dT = 0.5
-tau = 0.5
-alpha = 0.5
-tau2 = 0.2
+r = 0.8
+T = 0.1
+
+D_alpha = 0.01
+dT = r * dX * dX / (2.0 * D_alpha)
+N = int(math.floor(T / dT))
+
 omega = 0.0 #0.05
 nu = 0.0 #0.0005
 
-history_length = 40
-
-dtrw = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length)
-dtrw_X = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length)
+dtrw = DTRW_diffusive(X_init, N, r, omega, nu)
+dtrw_X = DTRW_diffusive(X_init, N, r, omega, nu)
 
 print dtrw.psi, dtrw.psi.sum()
 print dtrw.Phi
 print dtrw.K
+print "solving for", N, "time steps"
 
 dtrw.solve_all_steps()
-dtrw_X.solve_all_steps_with_K()
+# Note that for the other solver we solve using the arrival densities, rather than the memory
+# kernel. This means, that as the default memory length is 2, that this method will give us 
+# faulty results.
+dtrw_X.solve_all_steps_with_Q()
 
 xs = np.linspace(0, 1, X_init.shape[0])
 ys = np.linspace(0, 1, X_init.shape[1])
