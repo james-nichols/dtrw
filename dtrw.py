@@ -13,21 +13,48 @@ class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X, N, omega, nu, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, omega, nu, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
         """X is the initial concentration field, N is the number of time steps to simulate"""
-        self.X = np.dstack([X])
-        self.Q = np.dstack([X])
+        # Xs is either a single initial condition, or a list of initial conditions,
+        # for multi-species calculations, so we check first and act accordingly
+        self.Xs = []
+        self.Qs = []
+        if type(X_inits) == list:
+            for X in X_inits:
+                X_init = np.dstack([X])
+                # We allocate the whole history here to store 
+                self.Xs.append(np.zeros((X_init.shape[0], X_init.shape[1], N)))
+                self.Xs[-1][:,:,0] = X_init[:,:,0]
+                
+                Q_init = np.dstack([X])
+                self.Qs.append(np.zeros((Q_init.shape[0], Q_init.shape[1], N)))
+                self.Qs[-1][:,:,0] = Q_init[:,:,0]
+        else:
+            X_init = np.dstack([X_inits])
+            self.Xs.append(np.zeros((X_init.shape[0], X_init.shape[1], N)))
+            self.Xs[0][:,:,0] = X_init[:,:,0]
+            
+            Q_init = np.dstack([X_inits])
+            self.Qs.append(np.zeros((Q_init.shape[0], Q_init.shape[1], N)))
+            self.Qs[0][:,:,0] = Q_init[:,:,0]
+
+        self.shape = self.Xs[0][:,:,0].shape
+        self.size = self.Xs[0][:,:,0].size
+
         self.N = N
         self.history_length = history_length
+        
         self.is_periodic = is_periodic
+        self.has_density_dependent_reactions = False
 
-        # How many time steps have preceded the current one?
-        self.n = 0 # self.X.shape[-1]
+        # This is the time-step counter
+        self.n = 0
     
         self.beta = beta
         self.calc_lambda(potential)
         self.calc_psi()
         self.calc_Phi()
+        
         self.calc_omega(omega)
         self.calc_theta()
         self.calc_nu(nu)
@@ -43,7 +70,7 @@ class DTRW(object):
         # New regime - create a sequence of probabilities for left, right, up, down (in that order)
         
         if potential.size:
-            if potential.size != self.X[:,:,0].size: # and potential.shape != (self.X[:,:,0].shape + (2,2)):
+            if potential.size != self.size: # and potential.shape != (self.X[:,:,0].shape + (2,2)):
                 # NOT CURRENTLY TRUE BUT MIGHT BE AN OPTION: We allow the potential to have a to allow for escape fromt the domain
                 raise NameError("potential not the same shape as initial conditions") 
 
@@ -57,7 +84,7 @@ class DTRW(object):
             if self.is_periodic:
                 boltz_denom[:,-1] += boltz_func[:,0]
                 boltz_denom[:,0] += boltz_func[:,-1]
-            if self.X.shape[0] > 1:
+            if self.shape[0] > 1:
                 boltz_denom[:-1,:] += boltz_func[1:,:]
                 boltz_denom[1:,:] += boltz_func[:-1,:]
                 if self.is_periodic:
@@ -65,23 +92,23 @@ class DTRW(object):
                     boltz_denom[0,:] += boltz_func[-1,:]
 
             # Now calculate the left, right (and if 2D, up and down) probabilities
-            self.lam = np.zeros(self.X[:,:,0].shape)
+            self.lam = np.zeros(self.shape)
             # left
             self.lam = np.dstack([self.lam])
             self.lam[:,1:,0] += boltz_func[:,:-1] / boltz_denom[:,1:]
             # right
-            self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
+            self.lam = np.dstack([self.lam, np.zeros(self.shape)])
             self.lam[:,:-1,1] += boltz_func[:,1:] / boltz_denom[:,:-1]
             if self.is_periodic:
                 self.lam[:,0,0] += boltz_func[:,-1] / boltz_denom[:,0]
                 self.lam[:,-1,1] += boltz_func[:,0] / boltz_denom[:,-1]
 
-            if self.X.shape[0] > 1:
+            if self.shape[0] > 1:
                 # up
-                self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
+                self.lam = np.dstack([self.lam, np.zeros(self.shape)])
                 self.lam[1:,:,2] += boltz_func[:-1,:] / boltz_denom[1:,:]
                 # down
-                self.lam = np.dstack([self.lam, np.zeros(self.X[:,:,0].shape)])
+                self.lam = np.dstack([self.lam, np.zeros(self.shape)])
                 self.lam[:-1,:,3] += boltz_func[1:,:] / boltz_denom[:-1,:]
                 if self.is_periodic:
                     self.lam[0,:,2] += boltz_func[-1,:] / boltz_denom[0,:]
@@ -95,15 +122,15 @@ class DTRW(object):
                 self.lam[-1,:,3] = 1.0 - (self.lam[-1,:,0] + self.lam[-1,:,1] + self.lam[-1,:,2]) 
 
         else:
-            self.lam = np.ones(self.X[:,:,0].shape)
+            self.lam = np.ones(self.shape)
             self.lam = np.dstack([self.lam, self.lam]) 
 
             # now - if there's the second dimension, then we add the up & right properties
-            if self.X.shape[0] > 1:
+            if self.shape[0] > 1:
                 # up probability
-                self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
+                self.lam = np.dstack([self.lam, np.ones(self.shape)])
                 # down probability
-                self.lam = np.dstack([self.lam, np.ones(self.X[:,:,0].shape)])
+                self.lam = np.dstack([self.lam, np.ones(self.shape)])
                 self.lam = 0.25 * self.lam
             else:
                 # if there isn't the second dimension, prob's are 0.5
@@ -138,83 +165,93 @@ class DTRW(object):
         """Take a time step forward using arrival densities. NOTE in the diffusive case 
         it is necessary to use a full history to get this one right"""
         
+        # First we increment the time counter!
+        self.n += 1
         # How many time steps have we had?
-        self.n = self.X.shape[2] 
-       
-        lookback = min( self.n, self.history_length )
+        lookback = min(self.n, self.history_length)
+ 
+        for i in range(len(self.Xs)):
+            Q = self.Qs[i]
 
-        # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
-        flux = (self.Q[:, :, -lookback:] * self.psi[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2) + self.nu[self.n]
-        
-        # Now apply lambda jump probabilities
-        next_Q = np.zeros(self.X[:,:,0].shape)
-        
-        # First multiply by all the left jump probabilities
-        next_Q[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
-        # then all the right jump 
-        next_Q[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-        if self.is_periodic:
-            next_Q[:,-1] += self.lam[:,0,0] * flux[:,0]
-            next_Q[:,0] += self.lam[:,-1,1] * flux[:,-1]
-        if self.X.shape[0] > 1:
-            # The up jump
-            next_Q[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
-            # The down jump
-            next_Q[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-            if self.is_periodic:
-                next_Q[-1,:] += self.lam[0,:,2] * flux[0,:]
-                next_Q[0,:] += self.lam[-1,:,3] * flux[-1,:]
-
-        # Applying zero-flux boundary condition
-        #next_Q[:, 0] = next_Q[:, 1]
-        #next_Q[0, :] = next_Q[1, :]
-        #next_Q[:, -1] = next_Q[:, -2]
-        #next_Q[-1, :] = next_Q[-2, :]
+            # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
+            flux = (Q[:, :, self.n-lookback:self.n] * self.psi[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2) + self.nu[self.n]
             
-        # Add Q to the list of Qs over time
-        self.Q = np.dstack([self.Q, next_Q])
+            # Now apply lambda jump probabilities
+            next_Q = np.zeros(self.shape)
+            
+            # First multiply by all the left jump probabilities
+            next_Q[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
+            # then all the right jump 
+            next_Q[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
+            if self.is_periodic:
+                next_Q[:,-1] += self.lam[:,0,0] * flux[:,0]
+                next_Q[:,0] += self.lam[:,-1,1] * flux[:,-1]
+            if self.shape[0] > 1:
+                # The up jump
+                next_Q[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
+                # The down jump
+                next_Q[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+                if self.is_periodic:
+                    next_Q[-1,:] += self.lam[0,:,2] * flux[0,:]
+                    next_Q[0,:] += self.lam[-1,:,3] * flux[-1,:]
 
-        lookback = min( self.n+1, self.history_length )
-        
-        # Matrix methods to calc X as in eq. (11) in the J Comp Phys paper
-        next_X = (self.Q[:, :, -lookback:] * self.Phi[:lookback][::-1] * self.theta[-lookback:]).sum(2)
-        self.X = np.dstack([self.X, next_X])
+            # Add Q to the list of Qs over time
+            self.Qs[i][:,:,self.n] = next_Q
+
+            lookback = min(self.n+1, self.history_length)
+            
+            # Matrix methods to calc X as in eq. (11) in the J Comp Phys paper
+            next_X = (Q[:, :, self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1] * self.theta[-lookback:]).sum(2)
+            self.Xs[i][:,:,self.n] = next_X
         
     def time_step(self):
         """ Step forwards directly with X using the memory kernel K, this
             method is only available in cases where we can calculate K analytically!"""
  
+        # First we increment the time counter!
+        self.n += 1
         # How many time steps have we had?
-        self.n = self.X.shape[2] 
         lookback = min(self.n, self.history_length)
-
-        # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
-        flux = (self.X[:, :, -lookback:] * self.K[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2)
         
-        next_X = self.X[:,:,-1] - flux - self.omega[self.n] * self.X[:,:,-1]
+        for i in range(len(self.Xs)):
+            X = self.Xs[i]
 
-        # Now we add the spatial jumps
-        # First multiply by all the left jump probabilities
-        next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
-        # then all the right jump 
-        next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-        if self.is_periodic:
-            next_X[:,-1] += self.lam[:,0,0] * flux[:,0]
-            next_X[:,0] += self.lam[:,-1,1] * flux[:,-1]
-        if self.X.shape[0] > 1:
-            # The up jump
-            next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
-            # The down jump
-            next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+            if self.has_density_dependent_reactions:
+                # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
+                flux = (X[:, :, self.n-lookback:self.n] * self.theta[:,:,-lookback:] * self.K[1:lookback+1][::-1]).sum(2)
+                next_X = X[:,:,self.n] - flux - self.omega[:,:,self.n] * X[:,:,self.n]
+            else:
+                flux = (X[:, :, self.n-lookback:self.n] * self.K[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2)
+                next_X = X[:,:,self.n-1] - flux - self.omega[self.n-1] * X[:,:,self.n-1]
+
+            # Now we add the spatial jumps
+            # First multiply by all the left jump probabilities
+            next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
+            # then all the right jump 
+            next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
             if self.is_periodic:
-                next_X[-1,:] += self.lam[0,:,2] * flux[0,:]
-                next_X[0,:] += self.lam[-1,:,3] * flux[-1,:]
-               
-        # BUT WHAT ABOUT THE BOUNDARY CONDITIONS!!!!!!!
+                next_X[:,-1] += self.lam[:,0,0] * flux[:,0]
+                next_X[:,0] += self.lam[:,-1,1] * flux[:,-1]
+            if X.shape[0] > 1:
+                # The up jump
+                next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
+                # The down jump
+                next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+                if self.is_periodic:
+                    next_X[-1,:] += self.lam[0,:,2] * flux[0,:]
+                    next_X[0,:] += self.lam[-1,:,3] * flux[-1,:]
+                   
+            # BUT WHAT ABOUT THE BOUNDARY CONDITIONS!!!!!!!
 
-        # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
-        self.X = np.dstack((self.X, next_X))
+            # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
+            self.Xs[i][:,:,self.n] = next_X
 
+        if self.has_density_dependent_reactions:
+            self.calc_omega()
+            self.calc_theta()
+            self.calc_nu()
+
+    
     def solve_all_steps_with_Q(self):
 
         for i in range(self.N-1):

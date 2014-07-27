@@ -59,10 +59,10 @@ plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
 line2, = plt.plot([],[],'g-')
 line3, = plt.plot([],[],'b-')
-
+pdb.set_trace()
 def update(i, line1, line2, line3):
-    line1.set_data(xs,dtrw.X[:,:,i])
-    line2.set_data(xs,dtrw_sub.X[:,:,i])
+    line1.set_data(xs,dtrw.Xs[0][:,:,i])
+    line2.set_data(xs,dtrw_sub.Xs[0][:,:,i])
     if i == 0:
         analytic_soln = X_init
     else:

@@ -30,7 +30,7 @@ omega = 0.0 #0.05
 nu = 0.0 #0.0005
 
 dtrw = DTRW_diffusive(X_init, N, r, omega, nu)
-dtrw_X = DTRW_diffusive(X_init, N, r, omega, nu)
+dtrw_X = DTRW_diffusive(X_init, N, r, omega, nu, N)
 
 print dtrw.psi, dtrw.psi.sum()
 print dtrw.Phi
@@ -71,23 +71,26 @@ ax3.set_zlabel('Particle density')
 #title = ax.text(.5, 1.05, '', transform = ax.transAxes, va='center')
 #title = ax.text(0.5, 0.5, 0., 'Hi', zdir=None)
 
+X = dtrw.Xs[0]
+X_Q = dtrw_X.Xs[0]
+
 def update(i, ax1, ax2, ax3, fig):
     
     #ax = fig.get_axes(1, 3, 1)
     ax1.cla()
-    wframe = ax1.plot_surface(Xs, Ys, dtrw.X[:,:,i], rstride=5, cstride=5, color='Blue', alpha=0.2)
-    ax1.set_zlim(-0.1 * dtrw.X[:,:,i].max(), 1.1 * dtrw.X[:,:,i].max())
+    wframe = ax1.plot_surface(Xs, Ys, X[:,:,i], rstride=5, cstride=5, color='Blue', alpha=0.2)
+    ax1.set_zlim(-0.1 * X[:,:,i].max(), 1.1 * X[:,:,i].max())
 
     #ax = fig.get_axes(1, 3, 2) 
     ax2.cla()
-    wframe2 = ax2.plot_surface(Xs, Ys, dtrw_X.X[:,:,i], rstride=5, cstride=5, color='Red', alpha=0.2)
-    ax2.set_zlim(-0.1 * dtrw_X.X[:,:,i].max(), 1.1 * dtrw_X.X[:,:,i].max())
+    wframe2 = ax2.plot_surface(Xs, Ys, X_Q[:,:,i], rstride=5, cstride=5, color='Red', alpha=0.2)
+    ax2.set_zlim(-0.1 * X_Q[:,:,i].max(), 1.1 * X_Q[:,:,i].max())
 
     #ax = fig.get_axes(1, 3, 3) 
     ax3.cla()
-    wframe3 = ax3.plot_surface(Xs, Ys, dtrw.X[:,:,i] - dtrw_X.X[:,:,i], rstride=5, cstride=5, color='Purple', alpha=0.2)
-    plot_max = (dtrw.X[:,:,i] - dtrw_X.X[:,:,i]).max()
-    plot_min = (dtrw.X[:,:,i] - dtrw_X.X[:,:,i]).min()
+    wframe3 = ax3.plot_surface(Xs, Ys, X[:,:,i] - X_Q[:,:,i], rstride=5, cstride=5, color='Purple', alpha=0.2)
+    plot_max = (X[:,:,i] - X_Q[:,:,i]).max()
+    plot_min = (X[:,:,i] - X_Q[:,:,i]).min()
     ax3.set_zlim(1.1 * plot_min, 1.1 * plot_max)
 
     #cset = ax.contour(Xs, Ys, dtrw.X[:,:,i], zdir='z', offset=plot_min, cmap=cm.coolwarm)
