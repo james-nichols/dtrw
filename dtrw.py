@@ -13,7 +13,7 @@ class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X_inits, N, omega, nu, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, death, birth, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
@@ -45,7 +45,7 @@ class DTRW(object):
         self.history_length = history_length
         
         self.is_periodic = is_periodic
-        self.has_density_dependent_reactions = False
+        self.has_spatial_reactions = False
 
         # This is the time-step counter
         self.n = 0
@@ -54,10 +54,16 @@ class DTRW(object):
         self.calc_lambda(potential)
         self.calc_psi()
         self.calc_Phi()
+      
+        self.death_rate = death
+        self.birth_rate = birth
         
-        self.calc_omega(omega)
+        self.omegas = None
+        self.thetas = None
+        self.nus = None
+        self.calc_omega()
         self.calc_theta()
-        self.calc_nu(nu)
+        self.calc_nu()
         
         self.calc_mem_kernel()
     
@@ -145,21 +151,25 @@ class DTRW(object):
         """PDF of not jumping up to time n"""
         self.Phi = np.ones(self.history_length+1)
 
-    def calc_omega(self, om):
+    def calc_omega(self):
         """ Likelihood of surviving between n and n+1"""
-        self.omega = om * np.ones(self.N)
+        if self.omegas == None:
+            self.omegas = [self.death_rate * np.ones(self.N) for i in range(len(self.Xs))]
 
     def calc_theta(self):
         """Likelihood of surviving between 0 and n"""
-        self.theta = np.zeros(self.N)
-        
-        # Note that this only works for constant theta at the moment
-        for i in range(self.N):
-            self.theta[i] = (1.0 - self.omega[:i]).prod()
+        if self.thetas == None:
+            self.thetas = [np.zeros(self.N) for i in range(len(self.Xs))]
+
+            for i in range(len(self.Xs)):
+                # Note that this only works for constant theta at the moment
+                for j in range(self.N):
+                    self.thetas[i][j] = (1.0 - self.omegas[i][:j]).prod()
     
-    def calc_nu(self, birth):
+    def calc_nu(self):
         """Likelihood of birth happening at i"""
-        self.nu = birth * np.ones(self.N)
+        if self.nus == None:
+            self.nus = [self.birth_rate * np.ones(self.N) for i in range(len(self.Xs))]
     
     def time_step_with_Q(self):
         """Take a time step forward using arrival densities. NOTE in the diffusive case 
@@ -172,9 +182,12 @@ class DTRW(object):
  
         for i in range(len(self.Xs)):
             Q = self.Qs[i]
+            theta = self.thetas[i]
+            omega = self.omegas[i]
+            nu = self.nus[i]
 
             # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
-            flux = (Q[:, :, self.n-lookback:self.n] * self.psi[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2) + self.nu[self.n]
+            flux = (Q[:, :, self.n-lookback:self.n] * self.psi[1:lookback+1][::-1] * theta[-lookback:]).sum(2) + nu[self.n]
             
             # Now apply lambda jump probabilities
             next_Q = np.zeros(self.shape)
@@ -201,28 +214,35 @@ class DTRW(object):
             lookback = min(self.n+1, self.history_length)
             
             # Matrix methods to calc X as in eq. (11) in the J Comp Phys paper
-            next_X = (Q[:, :, self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1] * self.theta[-lookback:]).sum(2)
+            next_X = (Q[:, :, self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1] * theta[-lookback:]).sum(2)
             self.Xs[i][:,:,self.n] = next_X
-        
+       
+        self.calc_omega()
+        self.calc_theta()
+        self.calc_nu() 
+
     def time_step(self):
         """ Step forwards directly with X using the memory kernel K, this
             method is only available in cases where we can calculate K analytically!"""
  
         # First we increment the time counter!
         self.n += 1
-        # How many time steps have we had?
+        # This allows for the limited history, an approximation to speed things up.
         lookback = min(self.n, self.history_length)
         
         for i in range(len(self.Xs)):
             X = self.Xs[i]
-
-            if self.has_density_dependent_reactions:
+            theta = self.thetas[i]
+            omega = self.omegas[i]
+            nu = self.nus[i]
+        
+            if self.has_spatial_reactions:
                 # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
-                flux = (X[:, :, self.n-lookback:self.n] * self.theta[:,:,-lookback:] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n] - flux - self.omega[:,:,self.n] * X[:,:,self.n]
+                flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
+                next_X = X[:,:,self.n-1] - flux - omega[:,:,self.n-1] * X[:,:,self.n-1]
             else:
-                flux = (X[:, :, self.n-lookback:self.n] * self.K[1:lookback+1][::-1] * self.theta[-lookback:]).sum(2)
-                next_X = X[:,:,self.n-1] - flux - self.omega[self.n-1] * X[:,:,self.n-1]
+                flux = (X[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
+                next_X = X[:,:,self.n-1] - flux - omega[self.n-1] * X[:,:,self.n-1]
 
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
@@ -245,13 +265,11 @@ class DTRW(object):
 
             # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
             self.Xs[i][:,:,self.n] = next_X
-
-        if self.has_density_dependent_reactions:
+   
             self.calc_omega()
             self.calc_theta()
-            self.calc_nu()
+            self.calc_nu() 
 
-    
     def solve_all_steps_with_Q(self):
 
         for i in range(self.N-1):
@@ -266,11 +284,11 @@ class DTRW(object):
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X, N, r, omega, nu, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, r, omega, nu, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
         # Probability of jumping in one step 
         self.r = r
 
-        super(DTRW_diffusive, self).__init__(X, N, omega, nu, history_length, beta, potential, is_periodic)
+        super(DTRW_diffusive, self).__init__(X_inits, N, omega, nu, history_length, beta, potential, is_periodic)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -290,11 +308,11 @@ class DTRW_diffusive(DTRW):
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X, N, alpha, omega, nu, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, alpha, omega, nu, history_length, beta = 0., potential = np.array([]), is_periodic=False):
         
         self.alpha = alpha
         
-        super(DTRW_subdiffusive, self).__init__(X, N, omega, nu, history_length, beta, potential, is_periodic)
+        super(DTRW_subdiffusive, self).__init__(X_inits, N, omega, nu, history_length, beta, potential, is_periodic)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -337,3 +355,4 @@ class DTRW_subdiffusive(DTRW):
         self.K[2] = self.alpha * 0.5 * (self.alpha - 1.0)
         for i in range(3,self.history_length+1):
             self.K[i] = (float(i) + self.alpha - 2.0) * self.K[i-1] / float(i)
+
