@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib import cm
 
-
 n_points = 100
 L = 1.0
 dX = L / n_points
@@ -26,11 +25,8 @@ D_alpha = 0.01
 dT = r * dX * dX / (2.0 * D_alpha)
 N = int(math.floor(T / dT))
 
-omega = 0.0 #0.05
-nu = 0.0 #0.0005
-
-dtrw = DTRW_diffusive(X_init, N, r, omega, nu)
-dtrw_X = DTRW_diffusive(X_init, N, r, omega, nu, N)
+dtrw = DTRW_diffusive(X_init, N, r)
+dtrw_X = DTRW_diffusive(X_init, N, r, N)
 
 print dtrw.psi, dtrw.psi.sum()
 print dtrw.Phi
@@ -104,6 +100,13 @@ anim = animation.FuncAnimation(fig, update,
         frames=N, 
         fargs=(ax1, ax2, ax3, fig), interval=10)
 
-anim.save('compare_diffusion_methods.mp4', fps=24)
+import inspect, os, subprocess
+exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
+git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
+
+file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
+print "Saving animation to", file_name
+
+anim.save(file_name, fps=24)
 plt.show()
 

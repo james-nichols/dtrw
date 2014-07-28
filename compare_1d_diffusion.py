@@ -33,14 +33,11 @@ N_diff = int(math.floor(T / dT_diff))
 history_length_sub = N_sub
 history_length_diff = N_diff
 
-omega = 0.0 #0.05
-nu = 0.0 #0.0005
-
 print "Diffusive sim with dT =", dT_diff, "N =", N_diff, "r =", r
 print "Subdiffusive sim with dT =", dT_sub, "N =", N_sub, "alpha =", alpha
 
-dtrw = DTRW_diffusive(X_init, N_diff, r, omega, nu, history_length_diff)
-dtrw_sub = DTRW_subdiffusive(X_init, N_sub, alpha, omega, nu, history_length_sub)
+dtrw = DTRW_diffusive(X_init, N_diff, r, history_length_diff)
+dtrw_sub = DTRW_subdiffusive(X_init, N_sub, alpha, history_length_sub)
 
 print "Left jump probs: ", dtrw.lam[:,:,0]
 print "Right jump probs: ", dtrw.lam[:,:,1]
@@ -77,6 +74,13 @@ def update(i, line1, line2, line3):
 anim = animation.FuncAnimation(fig, update, 
         frames=N_diff, fargs=(line1, line2, line3), interval=10)
 
-anim.save('subdiffusion_line.mp4', fps=24)
+import inspect, os, subprocess
+exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
+git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
+
+file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
+print "Saving animation to", file_name
+
+anim.save(file_name, fps=24)
 plt.show()
 

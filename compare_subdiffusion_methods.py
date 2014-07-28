@@ -30,11 +30,8 @@ dT = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
 N = int(math.floor(T / dT))
 history_length = N
 
-omega = 0.0 #0.05
-nu = 0.0 #0.0005
-
-dtrw = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length)
-dtrw_Q = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length)
+dtrw = DTRW_subdiffusive(X_init, N, alpha, history_length)
+dtrw_Q = DTRW_subdiffusive(X_init, N, alpha, history_length)
 
 print dtrw.psi, dtrw.psi.sum()
 print dtrw.Phi
@@ -114,6 +111,13 @@ anim = animation.FuncAnimation(fig, update,
         frames=N, 
         fargs=(ax1, ax2, ax3, fig), interval=100)
 
-anim.save('compare_subdiffusion_methods.mp4', fps=24)
+import inspect, os, subprocess
+exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
+git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
+
+file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
+print "Saving animation to", file_name
+
+anim.save(file_name, fps=24)
 plt.show()
 

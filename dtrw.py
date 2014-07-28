@@ -13,7 +13,7 @@ class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X_inits, N, death, birth, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
@@ -55,9 +55,6 @@ class DTRW(object):
         self.calc_psi()
         self.calc_Phi()
       
-        self.death_rate = death
-        self.birth_rate = birth
-        
         self.omegas = None
         self.thetas = None
         self.nus = None
@@ -154,7 +151,7 @@ class DTRW(object):
     def calc_omega(self):
         """ Likelihood of surviving between n and n+1"""
         if self.omegas == None:
-            self.omegas = [self.death_rate * np.ones(self.N) for i in range(len(self.Xs))]
+            self.omegas = [np.zeros(self.N) for i in range(len(self.Xs))]
 
     def calc_theta(self):
         """Likelihood of surviving between 0 and n"""
@@ -169,7 +166,7 @@ class DTRW(object):
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [self.birth_rate * np.ones(self.N) for i in range(len(self.Xs))]
+            self.nus = [np.zeros(self.N) for i in range(len(self.Xs))]
     
     def time_step_with_Q(self):
         """Take a time step forward using arrival densities. NOTE in the diffusive case 
@@ -284,11 +281,11 @@ class DTRW(object):
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X_inits, N, r, omega, nu, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, r, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
         # Probability of jumping in one step 
         self.r = r
 
-        super(DTRW_diffusive, self).__init__(X_inits, N, omega, nu, history_length, beta, potential, is_periodic)
+        super(DTRW_diffusive, self).__init__(X_inits, N, history_length, beta, potential, is_periodic)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -308,11 +305,11 @@ class DTRW_diffusive(DTRW):
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X_inits, N, alpha, omega, nu, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, alpha, history_length, beta = 0., potential = np.array([]), is_periodic=False):
         
         self.alpha = alpha
         
-        super(DTRW_subdiffusive, self).__init__(X_inits, N, omega, nu, history_length, beta, potential, is_periodic)
+        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, beta, potential, is_periodic)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -355,4 +352,36 @@ class DTRW_subdiffusive(DTRW):
         self.K[2] = self.alpha * 0.5 * (self.alpha - 1.0)
         for i in range(3,self.history_length+1):
             self.K[i] = (float(i) + self.alpha - 2.0) * self.K[i-1] / float(i)
+
+class DTRW_subdiffusive_with_trasition:
+    
+    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+        
+        self.alpha = alpha
+       
+        self.k_1 = k_1 
+        self.k_2 = k_2
+        self.clearance_rate = clearance_rate 
+        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, beta, potential, is_periodic)
+    
+    def calc_omega(self):
+        """ Likelihood of surviving between n and n+1"""
+        if self.omegas == None:
+            self.omegas = [self.death_rate * np.ones(self.N) for i in range(len(self.Xs))]
+
+    def calc_theta(self):
+        """Likelihood of surviving between 0 and n"""
+        if self.thetas == None:
+            self.thetas = [np.zeros(self.N) for i in range(len(self.Xs))]
+
+            for i in range(len(self.Xs)):
+                # Note that this only works for constant theta at the moment
+                for j in range(self.N):
+                    self.thetas[i][j] = (1.0 - self.omegas[i][:j]).prod()
+    
+    def calc_nu(self):
+        """Likelihood of birth happening at i"""
+        if self.nus == None:
+            self.nus = [self.birth_rate * np.ones(self.N) for i in range(len(self.Xs))]
+    
 
