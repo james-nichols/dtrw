@@ -185,7 +185,8 @@ class DTRW(object):
 
             # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
             flux = (Q[:, :, self.n-lookback:self.n] * self.psi[1:lookback+1][::-1] * theta[-lookback:]).sum(2) + nu[self.n]
-            
+            # TODO: Need to replicate the spatial death process for the Q method as well!!
+
             # Now apply lambda jump probabilities
             next_Q = np.zeros(self.shape)
             
@@ -226,7 +227,7 @@ class DTRW(object):
         self.n += 1
         # This allows for the limited history, an approximation to speed things up.
         lookback = min(self.n, self.history_length)
-        
+
         for i in range(len(self.Xs)):
             X = self.Xs[i]
             theta = self.thetas[i]
@@ -236,10 +237,10 @@ class DTRW(object):
             if self.has_spatial_reactions:
                 # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
                 flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - flux - omega[:,:,self.n-1] * X[:,:,self.n-1]
+                next_X = X[:,:,self.n-1] - flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
             else:
                 flux = (X[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - flux - omega[self.n-1] * X[:,:,self.n-1]
+                next_X = X[:,:,self.n-1] - flux - omega[self.n-1] * X[:,:,self.n-1] + nu[self.n-1]
 
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
@@ -353,35 +354,111 @@ class DTRW_subdiffusive(DTRW):
         for i in range(3,self.history_length+1):
             self.K[i] = (float(i) + self.alpha - 2.0) * self.K[i-1] / float(i)
 
-class DTRW_subdiffusive_with_trasition:
+class DTRW_diffusive_with_transition(DTRW_diffusive):
     
-    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length, beta = 0., potential = np.array([]), is_periodic=False):
         
-        self.alpha = alpha
-       
         self.k_1 = k_1 
         self.k_2 = k_2
-        self.clearance_rate = clearance_rate 
-        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, beta, potential, is_periodic)
-    
+        # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
+        self.clearance_rate = 0. #clearance_rate 
+        self.infection_rate = infection_rate
+
+        super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, r, history_length, beta, potential, is_periodic)
+   
+        self.has_spatial_reactions = True
+
     def calc_omega(self):
-        """ Likelihood of surviving between n and n+1"""
+        """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [self.death_rate * np.ones(self.N) for i in range(len(self.Xs))]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            
+        # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
+        # Virions, layer 1
+        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
+        
+        # Virions, layer 2 
+        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2 - self.clearance_rate)
+
+        # Target CD4+ cells, layer 2
+        self.omegas[2][:,:,self.n] = 1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])
+        
+        # Infected CD4+ cells, layer 2
+        # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
+
 
     def calc_theta(self):
-        """Likelihood of surviving between 0 and n"""
+        """ Probability of surviving between 0 and n"""
         if self.thetas == None:
-            self.thetas = [np.zeros(self.N) for i in range(len(self.Xs))]
+            self.thetas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
-            for i in range(len(self.Xs)):
-                # Note that this only works for constant theta at the moment
-                for j in range(self.N):
-                    self.thetas[i][j] = (1.0 - self.omegas[i][:j]).prod()
-    
+        for i in range(len(self.Xs)):
+            self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [self.birth_rate * np.ones(self.N) for i in range(len(self.Xs))]
+            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
     
+        # Here we get birth rates that reflect death rates, that is, everything balances out in the end.
+        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
+        # No birth proces for target cells
+        #self.nus[2][:,:,self.n]
+        self.nus[3][:,:,self.n] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
+
+
+class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
+    
+    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+        
+        self.k_1 = k_1 
+        self.k_2 = k_2
+        # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
+        self.clearance_rate = 0. #clearance_rate 
+        self.infection_rate = infection_rate
+
+        super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, history_length, beta, potential, is_periodic)
+   
+        self.has_spatial_reactions = True
+
+    def calc_omega(self):
+        """ Probability of death between n and n+1"""
+        if self.omegas == None:
+            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            
+        # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
+        # Virions, layer 1
+        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
+        
+        # Virions, layer 2 
+        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2 - self.clearance_rate)
+
+        # Target CD4+ cells, layer 2
+        self.omegas[2][:,:,self.n] = 1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])
+        
+        # Infected CD4+ cells, layer 2
+        # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
+
+
+    def calc_theta(self):
+        """ Probability of surviving between 0 and n"""
+        if self.thetas == None:
+            self.thetas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+
+        for i in range(len(self.Xs)):
+            self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+
+    def calc_nu(self):
+        """Likelihood of birth happening at i"""
+        if self.nus == None:
+            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+    
+        # Here we get birth rates that reflect death rates, that is, everything balances out in the end.
+        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
+        # No birth proces for target cells
+        #self.nus[2][:,:,self.n]
+        self.nus[3][:,:,self.n] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
+
 
