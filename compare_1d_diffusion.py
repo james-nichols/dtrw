@@ -18,26 +18,22 @@ dX = L / n_points
 X_init = np.zeros(n_points)
 X_init[n_points / 2] = 1.0
 
-T = 0.5
+T = 1.0
 
 alpha = 0.75
 D_alpha = 0.1
 
-r = 0.8
+dT = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
+N = int(math.floor(T / dT))
+history_length = N
 
-dT_sub = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
-dT_diff = r * dX * dX / (2.0 * D_alpha)
+# Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
+r = dT / (dX * dX / (2.0 * D_alpha))
 
-N_sub = int(math.floor(T / dT_sub))
-N_diff = int(math.floor(T / dT_diff))
-history_length_sub = N_sub
-history_length_diff = N_diff
+print "Diffusive sim with dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
 
-print "Diffusive sim with dT =", dT_diff, "N =", N_diff, "r =", r
-print "Subdiffusive sim with dT =", dT_sub, "N =", N_sub, "alpha =", alpha
-
-dtrw = DTRW_diffusive(X_init, N_diff, r, history_length_diff)
-dtrw_sub = DTRW_subdiffusive(X_init, N_sub, alpha, history_length_sub)
+dtrw = DTRW_diffusive(X_init, N, r, history_length)
+dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length)
 
 print "Left jump probs: ", dtrw.lam[:,:,0]
 print "Right jump probs: ", dtrw.lam[:,:,1]
@@ -51,7 +47,7 @@ xs = np.linspace(0., L, n_points, endpoint=False)
 
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,1)
-plt.ylim(0,1)
+plt.ylim(0,0.2)
 plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
 line2, = plt.plot([],[],'g-')
@@ -63,7 +59,7 @@ def update(i, line1, line2, line3):
     if i == 0:
         analytic_soln = X_init
     else:
-        analytic_soln = (1./math.sqrt(4. * math.pi * float(i) * dT_diff * D_alpha)) * np.exp( - (xs - 0.5) * (xs - 0.5) / (4. * D_alpha * float(i) * dT_diff)) * dX
+        analytic_soln = (1./math.sqrt(4. * math.pi * float(i) * dT * D_alpha)) * np.exp( - (xs - 0.5) * (xs - 0.5) / (4. * D_alpha * float(i) * dT)) * dX
     line3.set_data(xs, analytic_soln)
     return line1, line2, line3
 
@@ -72,7 +68,7 @@ def update(i, line1, line2, line3):
 # is NOT correct (for the time being) as time steps are fundamentally different between the two.
 # Perhaps in future it might be good to include a time step interpolator for comparing the behaviours.
 anim = animation.FuncAnimation(fig, update, 
-        frames=N_diff, fargs=(line1, line2, line3), interval=10)
+        frames=N, fargs=(line1, line2, line3), interval=10)
 
 import inspect, os, subprocess
 exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
