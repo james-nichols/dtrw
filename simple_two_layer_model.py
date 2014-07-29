@@ -35,7 +35,7 @@ r = dT / (dX * dX / (2.0 * D_alpha))
 
 k_1 = dT * 5.
 k_2 = dT * 0.5
-infection_rate = dT * 100.
+infection_rate = dT * 5.
 clearance_rate = 0.
 
 dtrw_sub = DTRW_subdiffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, is_periodic=True)
@@ -156,5 +156,5 @@ git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).repla
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
 print "Saving animation to", file_name
 
-anim.save(file_name, fps=24)
+anim.save(file_name, fps=24, extra_args=['-vcodec', 'libx264'])
 #plt.show()
