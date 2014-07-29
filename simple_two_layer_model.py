@@ -9,21 +9,21 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib import cm
 
-n_points = 100 
+n_points = 40 
 L = 1.0
 dX = L / n_points
 
 V_1_init = np.zeros([n_points, n_points])
-V_1_init[50,50] = 1.0 / (dX * dX)
+V_1_init[n_points/2,n_points/2] = 1.0 / (dX * dX)
 
 V_2_init = np.zeros([n_points, n_points])
 
 S_init = np.ones([n_points, n_points])
 I_init = np.zeros([n_points, n_points])
 
-T = 0.1
+T = 1.0
 
-alpha = 0.8
+alpha = 0.75
 D_alpha = 0.05
 
 dT = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
@@ -35,7 +35,7 @@ r = dT / (dX * dX / (2.0 * D_alpha))
 
 k_1 = dT * 5.
 k_2 = dT * 0.5
-infection_rate = dT * 5.
+infection_rate = dT * 2.
 clearance_rate = 0.
 
 dtrw_sub = DTRW_subdiffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, is_periodic=True)
