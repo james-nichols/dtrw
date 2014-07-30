@@ -11,14 +11,14 @@ from matplotlib import cm
 
 import pdb
 
-n_points = 40
-L = 1.0
+n_points = 100
+L = 5.0
 dX = L / n_points
 
 X_init = np.zeros(n_points)
 X_init[n_points / 2] = 1.0
 
-T = 1.0
+T = 2.0
 
 alpha = 0.75
 D_alpha = 0.1
@@ -46,12 +46,13 @@ print "Solutions computed, now creating animation..."
 xs = np.linspace(0., L, n_points, endpoint=False)
 
 fig = plt.figure(figsize=(8,8))
-plt.xlim(0,1)
+plt.xlim(0,L)
 plt.ylim(0,0.2)
 plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
 line2, = plt.plot([],[],'g-')
 line3, = plt.plot([],[],'b-')
+plt.legend([line1, line2, line3], ["Normal diffusion", "Sub-diffusion, alpha=3/4", "analytic diffusion"])
 
 def update(i, line1, line2, line3):
     line1.set_data(xs,dtrw.Xs[0][:,:,i])
@@ -59,14 +60,11 @@ def update(i, line1, line2, line3):
     if i == 0:
         analytic_soln = X_init
     else:
-        analytic_soln = (1./math.sqrt(4. * math.pi * float(i) * dT * D_alpha)) * np.exp( - (xs - 0.5) * (xs - 0.5) / (4. * D_alpha * float(i) * dT)) * dX
+        analytic_soln = (1./math.sqrt(4. * math.pi * float(i) * dT * D_alpha)) * np.exp( - (xs - 2.5) * (xs - 2.5) / (4. * D_alpha * float(i) * dT)) * dX
     line3.set_data(xs, analytic_soln)
     return line1, line2, line3
 
 # call the animator. blit=True means only re-draw the parts that have changed.
-# NOTE the comparison between diffusive and subdiffusive behaviour in this animator 
-# is NOT correct (for the time being) as time steps are fundamentally different between the two.
-# Perhaps in future it might be good to include a time step interpolator for comparing the behaviours.
 anim = animation.FuncAnimation(fig, update, 
         frames=N, fargs=(line1, line2, line3), interval=10)
 
