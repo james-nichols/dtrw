@@ -18,10 +18,10 @@ V_1_init[n_points/2,n_points/2] = 1.0 / (dX * dX)
 
 V_2_init = np.zeros([n_points, n_points])
 
-S_init = np.ones([n_points, n_points])
+S_init = 2.*np.ones([n_points, n_points])
 I_init = np.zeros([n_points, n_points])
 
-T = 1.0
+T = 0.5
 
 alpha = 0.75
 D_alpha = 0.05
@@ -59,35 +59,35 @@ fig = plt.figure(figsize=(32,16))
 
 ax1 = fig.add_subplot(2, 4, 1, projection='3d')
 wframe = ax1.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
-ax1.set_zlim(0.,100.)
+ax1.set_zlim(0.,10.)
 
 ax2 = fig.add_subplot(2, 4, 2, projection='3d')
 wframe2 = ax2.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
-ax2.set_zlim(0.,100.)
+ax2.set_zlim(0.,10.)
 
 ax3 = fig.add_subplot(2, 4, 3, projection='3d')
 wframe3 = ax3.plot_surface(Xs, Ys, S_init, rstride=5, cstride=5)
-ax3.set_zlim(0.,1)
+ax3.set_zlim(0.,2.)
 
 ax4 = fig.add_subplot(2, 4, 4, projection='3d')
 wframe4 = ax4.plot_surface(Xs, Ys, I_init, rstride=5, cstride=5)
-ax4.set_zlim(0.,1)
+ax4.set_zlim(0.,2,)
 
 ax5 = fig.add_subplot(2, 4, 5, projection='3d')
 wframe5 = ax5.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
-ax5.set_zlim(0.,100.)
+ax5.set_zlim(0.,10.)
 
 ax6 = fig.add_subplot(2, 4, 6, projection='3d')
 wframe6 = ax6.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
-ax6.set_zlim(0.,100.)
+ax6.set_zlim(0.,10.)
 
 ax7 = fig.add_subplot(2, 4, 7, projection='3d')
 wframe7 = ax7.plot_surface(Xs, Ys, S_init, rstride=5, cstride=5)
-ax7.set_zlim(0.,1)
+ax7.set_zlim(0.,2.)
 
 ax8 = fig.add_subplot(2, 4, 8, projection='3d')
 wframe8 = ax8.plot_surface(Xs, Ys, I_init, rstride=5, cstride=5)
-ax8.set_zlim(0.,1)
+ax8.set_zlim(0.,2.)
 
 V_1 = dtrw.Xs[0]
 V_2 = dtrw.Xs[1]
@@ -102,35 +102,35 @@ def update(i, ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, fig):
     
     ax1.cla()
     wframe = ax1.plot_surface(Xs, Ys, V_1[:,:,i], rstride=5, cstride=5, color='Blue', alpha=0.2)
-    ax1.set_zlim(0.,100.)
+    ax1.set_zlim(0.,10.)
 
     ax2.cla()
     wframe2 = ax2.plot_surface(Xs, Ys, V_2[:,:,i], rstride=5, cstride=5, color='Red', alpha=0.2)
-    ax2.set_zlim(0.,100.)
+    ax2.set_zlim(0.,10.)
 
     ax3.cla()
     wframe3 = ax3.plot_surface(Xs, Ys, S[:,:,i], rstride=5, cstride=5, color='Purple', alpha=0.2)
-    ax3.set_zlim(0.,1.)
+    ax3.set_zlim(0.,2.)
 
     ax4.cla()
     wframe4 = ax4.plot_surface(Xs, Ys, I[:,:,i], rstride=5, cstride=5, color='Green', alpha=0.2)
-    ax4.set_zlim(0.,1.)
+    ax4.set_zlim(0.,2.)
     
     ax5.cla()
     wframe5 = ax5.plot_surface(Xs, Ys, V_1_sub[:,:,i], rstride=5, cstride=5, color='Blue', alpha=0.2)
-    ax5.set_zlim(0.,100.)
+    ax5.set_zlim(0.,10.)
 
     ax6.cla()
     wframe6 = ax6.plot_surface(Xs, Ys, V_2_sub[:,:,i], rstride=5, cstride=5, color='Red', alpha=0.2)
-    ax6.set_zlim(0.,100.)
+    ax6.set_zlim(0.,10.)
 
     ax7.cla()
     wframe7 = ax7.plot_surface(Xs, Ys, S_sub[:,:,i], rstride=5, cstride=5, color='Purple', alpha=0.2)
-    ax7.set_zlim(0.,1.)
+    ax7.set_zlim(0.,2.)
 
     ax8.cla()
     wframe8 = ax8.plot_surface(Xs, Ys, I_sub[:,:,i], rstride=5, cstride=5, color='Green', alpha=0.2)
-    ax8.set_zlim(0.,1.)
+    ax8.set_zlim(0.,2.)
     
  
     #cset = ax.contour(Xs, Ys, X[:,:,i], zdir='z', offset=plot_min, cmap=cm.coolwarm)
@@ -155,6 +155,6 @@ git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).repla
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
 print "Saving animation to", file_name
-
-anim.save(file_name, fps=24, extra_args=['-vcodec', 'libx264'])
+pdb.set_trace()
+anim.save(file_name, fps=24)#, extra_args=['-vcodec', 'libx264'])
 #plt.show()
