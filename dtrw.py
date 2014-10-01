@@ -174,8 +174,6 @@ class DTRW(object):
         
         # First we increment the time counter!
         self.n += 1
-        # How many time steps have we had?
-        lookback = min(self.n, self.history_length)
  
         for i in range(len(self.Xs)):
             Q = self.Qs[i]
@@ -183,10 +181,17 @@ class DTRW(object):
             omega = self.omegas[i]
             nu = self.nus[i]
 
+            # How many time steps have we had?
+            lookback = min(self.n, self.history_length)
+            
             # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
-            flux = (Q[:, :, self.n-lookback:self.n] * self.psi[1:lookback+1][::-1] * theta[-lookback:]).sum(2) + nu[self.n]
-            # TODO: Need to replicate the spatial death process for the Q method as well!!
+            if self.has_spatial_reactions:
+                # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
+                flux = (Q[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
+            else:
+                flux = (Q[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
 
+            pdb.set_trace()
             # Now apply lambda jump probabilities
             next_Q = np.zeros(self.shape)
             
@@ -212,7 +217,12 @@ class DTRW(object):
             lookback = min(self.n+1, self.history_length)
             
             # Matrix methods to calc X as in eq. (11) in the J Comp Phys paper
-            next_X = (Q[:, :, self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1] * theta[-lookback:]).sum(2)
+            if self.has_spatial_reactions:
+                # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
+                next_X = (Q[:, :, self.n+1-lookback:self.n+1] * theta[:,:,self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1]).sum(2) + nu[:,:,self.n-1]
+            else:
+                next_X = (Q[:, :, self.n+1-lookback:self.n+1] * theta[self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1]).sum(2) + nu[self.n-1]
+
             self.Xs[i][:,:,self.n] = next_X
        
         self.calc_omega()
@@ -356,7 +366,7 @@ class DTRW_subdiffusive(DTRW):
 
 class DTRW_diffusive_with_transition(DTRW_diffusive):
     
-    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
         
         self.k_1 = k_1 
         self.k_2 = k_2
@@ -390,7 +400,7 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
     def calc_theta(self):
         """ Probability of surviving between 0 and n"""
         if self.thetas == None:
-            self.thetas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
         for i in range(len(self.Xs)):
             self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
@@ -444,7 +454,7 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
     def calc_theta(self):
         """ Probability of surviving between 0 and n"""
         if self.thetas == None:
-            self.thetas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
         for i in range(len(self.Xs)):
             self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
