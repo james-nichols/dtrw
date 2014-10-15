@@ -471,4 +471,63 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
         #self.nus[2][:,:,self.n]
         self.nus[3][:,:,self.n] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
 
+class DTRW_ODE(object):
+    """ A DTRW class for non spatial, compartment only models, so reactions are easily given either an anomalous  """
 
+    def __init__(self, X_inits, N):
+        
+        self.N = N
+        self.n = 0
+        self.Xs = np.vstack(X_inits)
+        # We define no kernels and no fluxes.
+
+    def out_flux(self, i):
+        """ defines the outward flux of a compartment """
+        return np.zeros(len(self.Xs[-1]))
+
+    def in_flux(self, i):
+        """ defines the inward flux of a compartment """
+        return np.zeros(len(self.Xs[-1]))
+    
+    def time_step(self):
+        """ Step forwards directly with X using the memory kernels K, this
+            method is only available in cases where we can calculate K analytically!"""
+ 
+        # First we increment the time counter!
+        self.n += 1
+
+        next_X = self.Xs[:,-1] + self.in_flux() - self.out_flux()
+         
+        self.Xs = np.column_stack([self.Xs, next_X])
+   
+
+    def calc_sibuya_kernel(self, N, alpha):
+        """Once off call to calculate the memory kernel and store it"""
+        result = np.zeros(N+1)
+        
+        result[0] = 0.0
+        result[1] = alpha 
+        result[2] = alpha * 0.5 * (self.alpha - 1.0)
+        for i in range(3,N+1):
+            result = (float(i) + alpha - 2.0) * result[i-1] / float(i)
+ 
+    def calc_diff_kernel(self, N, r):
+        """Once off call to calculate the memory kernel and store it"""
+        result = np.zeros(N+1)
+         
+        # In the exponential case it's quite simply...
+        result[1] = r
+
+class DTRW_two_compartment_test(DTRW_ODE):
+
+    def __init__(self, X_inits, N, dt, alpha, delta):
+
+        self.transition_K = self.calc_sibuya_kernel(N)
+        self.death_K self.calc_diff_kernel(2, delta)
+
+    def out_flux(self):
+        
+        out_f = np.zeros(len(self.Xs[:,-1]))
+        
+        out_f[0] = self.Xs[0, :] * self.transition_K[:self.n][::-1]
+        out_f[1] = self.Xs[1, :-2] * self.death_K[::-1]
