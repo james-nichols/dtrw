@@ -9,11 +9,19 @@ from itertools import *
 
 import pdb
 
+class BC(object):
+    
+    default, periodic, neumann, dirichelet = range(4)
+
+    def __init__(self, bc_type=0, bc_data=[]):
+        self.bc_type = bc_type
+        self.bc_data = bc_data
+
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X_inits, N, history_length = 2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, history_length = 2, beta = 0., potential = np.array([]), boundary_condition=BC(BC.default)):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
@@ -44,7 +52,7 @@ class DTRW(object):
         self.N = N
         self.history_length = history_length
         
-        self.is_periodic = is_periodic
+        self.boundary_condition = boundary_condition
         self.has_spatial_reactions = False
 
         # This is the time-step counter
@@ -84,13 +92,13 @@ class DTRW(object):
             boltz_denom = np.zeros(boltz_func.shape)
             boltz_denom[:,:-1] += boltz_func[:,1:]
             boltz_denom[:,1:] += boltz_func[:,:-1]
-            if self.is_periodic:
+            if self.boundary_condition.bc_type == BC.periodic:
                 boltz_denom[:,-1] += boltz_func[:,0]
                 boltz_denom[:,0] += boltz_func[:,-1]
             if self.shape[0] > 1:
                 boltz_denom[:-1,:] += boltz_func[1:,:]
                 boltz_denom[1:,:] += boltz_func[:-1,:]
-                if self.is_periodic:
+                if self.boundary_condition.bc_type == BC.periodic:
                     boltz_denom[-1,:] += boltz_func[0,:]
                     boltz_denom[0,:] += boltz_func[-1,:]
 
@@ -102,7 +110,7 @@ class DTRW(object):
             # right
             self.lam = np.dstack([self.lam, np.zeros(self.shape)])
             self.lam[:,:-1,1] += boltz_func[:,1:] / boltz_denom[:,:-1]
-            if self.is_periodic:
+            if self.boundary_condition.bc_type == BC.periodic:
                 self.lam[:,0,0] += boltz_func[:,-1] / boltz_denom[:,0]
                 self.lam[:,-1,1] += boltz_func[:,0] / boltz_denom[:,-1]
 
@@ -113,7 +121,7 @@ class DTRW(object):
                 # down
                 self.lam = np.dstack([self.lam, np.zeros(self.shape)])
                 self.lam[:-1,:,3] += boltz_func[1:,:] / boltz_denom[:-1,:]
-                if self.is_periodic:
+                if self.boundary_condition.bc_type == BC.periodic:
                     self.lam[0,:,2] += boltz_func[-1,:] / boltz_denom[0,:]
                     self.lam[-1,:,3] += boltz_func[0,:] / boltz_denom[-1,:]
         
@@ -138,7 +146,6 @@ class DTRW(object):
             else:
                 # if there isn't the second dimension, prob's are 0.5
                 self.lam = 0.5 * self.lam
-
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -199,7 +206,7 @@ class DTRW(object):
             next_Q[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
             # then all the right jump 
             next_Q[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-            if self.is_periodic:
+            if self.boundary_condition.bc_type == BC.periodic:
                 next_Q[:,-1] += self.lam[:,0,0] * flux[:,0]
                 next_Q[:,0] += self.lam[:,-1,1] * flux[:,-1]
             if self.shape[0] > 1:
@@ -207,7 +214,7 @@ class DTRW(object):
                 next_Q[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
                 next_Q[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-                if self.is_periodic:
+                if self.boundary_condition.bc_type == BC.periodic:
                     next_Q[-1,:] += self.lam[0,:,2] * flux[0,:]
                     next_Q[0,:] += self.lam[-1,:,3] * flux[-1,:]
 
@@ -257,7 +264,7 @@ class DTRW(object):
             next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
             # then all the right jump 
             next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-            if self.is_periodic:
+            if self.boundary_condition.bc_type == BC.periodic:
                 next_X[:,-1] += self.lam[:,0,0] * flux[:,0]
                 next_X[:,0] += self.lam[:,-1,1] * flux[:,-1]
             if X.shape[0] > 1:
@@ -265,7 +272,7 @@ class DTRW(object):
                 next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
                 next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-                if self.is_periodic:
+                if self.boundary_condition.bc_type == BC.periodic:
                     next_X[-1,:] += self.lam[0,:,2] * flux[0,:]
                     next_X[0,:] += self.lam[-1,:,3] * flux[-1,:]
                    
@@ -292,11 +299,11 @@ class DTRW(object):
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X_inits, N, r, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, r, history_length=2, beta = 0., potential = np.array([]), boundary_condition=BC()):
         # Probability of jumping in one step 
         self.r = r
 
-        super(DTRW_diffusive, self).__init__(X_inits, N, history_length, beta, potential, is_periodic)
+        super(DTRW_diffusive, self).__init__(X_inits, N, history_length, beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -316,11 +323,11 @@ class DTRW_diffusive(DTRW):
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X_inits, N, alpha, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, alpha, history_length, beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.alpha = alpha
         
-        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, beta, potential, is_periodic)
+        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -366,7 +373,7 @@ class DTRW_subdiffusive(DTRW):
 
 class DTRW_diffusive_with_transition(DTRW_diffusive):
     
-    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length=2, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length=2, beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k_1 = k_1 
         self.k_2 = k_2
@@ -374,7 +381,7 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
         self.clearance_rate = 0. #clearance_rate 
         self.infection_rate = infection_rate
 
-        super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, r, history_length, beta, potential, is_periodic)
+        super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, r, history_length, beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -420,7 +427,7 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
 
 class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
     
-    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, beta = 0., potential = np.array([]), is_periodic=False):
+    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k_1 = k_1 
         self.k_2 = k_2
@@ -428,7 +435,7 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
         self.clearance_rate = 0. #clearance_rate 
         self.infection_rate = infection_rate
 
-        super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, history_length, beta, potential, is_periodic)
+        super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, history_length, beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -523,7 +530,7 @@ class DTRW_two_compartment_test(DTRW_ODE):
     def __init__(self, X_inits, N, dt, alpha, delta):
 
         self.transition_K = self.calc_sibuya_kernel(N)
-        self.death_K self.calc_diff_kernel(2, delta)
+        self.death_K = self.calc_diff_kernel(2, delta)
 
     def out_flux(self):
         

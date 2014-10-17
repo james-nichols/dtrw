@@ -32,15 +32,15 @@ potential = np.cos(2. * math.pi * xs)
 omega = 0.0 #0.05
 nu = 0.0 #0.0005
 
-is_periodic = True
+boundary_condition = BC(BC.periodic)
 
-#dtrw = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length, is_periodic)
-dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, omega, nu, history_length, beta, potential, is_periodic)
+#dtrw = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length, boundary_condition)
+dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length, beta, potential, boundary_condition)
 #dtrw.solve_all_steps()
 
 print "Solving DTRW for", N, "time steps to time", T, ". dT =", dT
 
-dtrw_sub.solve_all_steps_with_K()
+dtrw_sub.solve_all_steps()
 
 np.save("Example4_results", dtrw_sub.X)
 
