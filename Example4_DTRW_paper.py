@@ -32,7 +32,7 @@ potential = np.cos(2. * math.pi * xs)
 omega = 0.0 #0.05
 nu = 0.0 #0.0005
 
-boundary_condition = BC(BC.periodic)
+boundary_condition = BC_periodic()
 
 #dtrw = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length, boundary_condition)
 dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length, beta, potential, boundary_condition)

@@ -38,8 +38,8 @@ k_2 = dT * 0.5
 infection_rate = dT * 2.
 clearance_rate = 0.
 
-dtrw_sub = DTRW_subdiffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, boundary_condition = BC(BC.periodic))
-dtrw = DTRW_diffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, r, k_1, k_2, clearance_rate, infection_rate, history_length, boundary_condition = BC(BC.periodic))
+dtrw_sub = DTRW_subdiffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, boundary_condition = BC_periodic())
+dtrw = DTRW_diffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, r, k_1, k_2, clearance_rate, infection_rate, history_length, boundary_condition = BC_periodic())
 
 print "Solving for", N, "steps, dT =", dT, ", diffusion matching gives r =", r
 

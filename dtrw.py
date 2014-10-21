@@ -5,23 +5,77 @@ import numpy as np
 import scipy as sp
 import scipy.signal
 import scipy.special
+import scipy.optimize
 from itertools import *
 
 import pdb
 
 class BC(object):
-    
-    default, periodic, neumann, dirichelet = range(4)
+    def __init__(self):
+        pass
+    def apply_BCs(self, next_X, flux, lam):
+        # Apply the boundary conditions, called from the time step routine in DTRW
+        pass
 
-    def __init__(self, bc_type=0, bc_data=[]):
-        self.bc_type = bc_type
-        self.bc_data = bc_data
+class BC_Dirichelet(BC):
+    def __init__(self, data):
+        self.data = data
+
+    def apply_BCs(self, next_X, flux, lam):
+        if self.data[0].shape != next_X[:,0].shape and self.data[0].shape:
+            pdb.set_trace()
+            raise Exception('Boundary conditions are incorrect shape, BC data is ' + str(self.data[0].shape) + ' Sol\'n is ' + str(next_X[:,0].shape))
+
+        next_X[:,0] = self.data[0]
+        if len(self.data) > 1: 
+            next_X[:,-1] = self.data[1]
+            if next_X.shape[0] > 1:
+                next_X[0,:] = self.data[2]
+                next_X[-1,:] = self.data[3]
+
+class BC_Fedotov(BC):
+
+    def __init__(self, alpha, constant, right):
+        self.alpha = alpha
+        self.constant = constant
+        self.right = right
+
+    def apply_BCs(self, next_X, flux, lam):
+        # Only left side has BC
+        for i in range(next_X.shape[0]):
+            #next_X[i,0] = scipy.optimize.newton(self.fedotov_func, next_X[i, 1], fprime=self.fedotov_func_prime, args=(next_X[i,1], self.bc_data[0], self.bc_data[1]))
+            next_X[i,0] = pow(self.constant + pow(next_X[i, 2], 2.-self.alpha), 1. / (2.-self.alpha)) 
+            next_X[i,-1] = self.right
+
+    def fedotov_func(x_0, x_1, alpha, const):
+        # Annoying function to find Fedotov's boundary condition
+        return pow(x_0, 1.-alpha) * (x_1 - x_0) + const 
+        #return pow(x_1, 1.-alpha) * (x_1 - x_0) + const 
+
+    def fedotov_func_prime(x_0, x_1, alpha, const):
+        # Annoying function to find Fedotov's boundary condition
+        return (1.-alpha) * pow(x_0, -alpha) * (x_1 - x_0) - pow(x_0, 1.-alpha) 
+        #return - pow(x_1, 1.-alpha)
+
+class BC_periodic(object):
+    
+    def __init__(self):
+        pass 
+
+    def apply_BCs(self, next_X, flux, lam):
+        # Apply the boundary conditions
+        next_X[:,-1] += lam[:,0,0] * flux[:,0]
+        next_X[:,0] += lam[:,-1,1] * flux[:,-1]
+
+        if next_X.shape[0] > 1:
+            next_X[-1,:] += lam[0,:,2] * flux[0,:]
+            next_X[0,:] += lam[-1,:,3] * flux[-1,:]
 
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X_inits, N, history_length = 2, beta = 0., potential = np.array([]), boundary_condition=BC(BC.default)):
+    def __init__(self, X_inits, N, history_length = 2, beta = 0., potential = np.array([]), boundary_condition=BC()):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
@@ -50,7 +104,10 @@ class DTRW(object):
         self.size = self.Xs[0][:,:,0].size
 
         self.N = N
-        self.history_length = history_length
+        if history_length == 0:
+            self.history_length = N
+        else:
+            self.history_length = history_length
         
         self.boundary_condition = boundary_condition
         self.has_spatial_reactions = False
@@ -92,13 +149,13 @@ class DTRW(object):
             boltz_denom = np.zeros(boltz_func.shape)
             boltz_denom[:,:-1] += boltz_func[:,1:]
             boltz_denom[:,1:] += boltz_func[:,:-1]
-            if self.boundary_condition.bc_type == BC.periodic:
+            if self.boundary_condition is BC_periodic:
                 boltz_denom[:,-1] += boltz_func[:,0]
                 boltz_denom[:,0] += boltz_func[:,-1]
             if self.shape[0] > 1:
                 boltz_denom[:-1,:] += boltz_func[1:,:]
                 boltz_denom[1:,:] += boltz_func[:-1,:]
-                if self.boundary_condition.bc_type == BC.periodic:
+                if self.boundary_condition is BC_periodic:
                     boltz_denom[-1,:] += boltz_func[0,:]
                     boltz_denom[0,:] += boltz_func[-1,:]
 
@@ -110,7 +167,7 @@ class DTRW(object):
             # right
             self.lam = np.dstack([self.lam, np.zeros(self.shape)])
             self.lam[:,:-1,1] += boltz_func[:,1:] / boltz_denom[:,:-1]
-            if self.boundary_condition.bc_type == BC.periodic:
+            if self.boundary_condition is BC_periodic:
                 self.lam[:,0,0] += boltz_func[:,-1] / boltz_denom[:,0]
                 self.lam[:,-1,1] += boltz_func[:,0] / boltz_denom[:,-1]
 
@@ -121,7 +178,7 @@ class DTRW(object):
                 # down
                 self.lam = np.dstack([self.lam, np.zeros(self.shape)])
                 self.lam[:-1,:,3] += boltz_func[1:,:] / boltz_denom[:-1,:]
-                if self.boundary_condition.bc_type == BC.periodic:
+                if self.boundary_condition is BC_periodic:
                     self.lam[0,:,2] += boltz_func[-1,:] / boltz_denom[0,:]
                     self.lam[-1,:,3] += boltz_func[0,:] / boltz_denom[-1,:]
         
@@ -206,7 +263,7 @@ class DTRW(object):
             next_Q[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
             # then all the right jump 
             next_Q[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-            if self.boundary_condition.bc_type == BC.periodic:
+            if self.boundary_condition is BC_periodic:
                 next_Q[:,-1] += self.lam[:,0,0] * flux[:,0]
                 next_Q[:,0] += self.lam[:,-1,1] * flux[:,-1]
             if self.shape[0] > 1:
@@ -214,7 +271,7 @@ class DTRW(object):
                 next_Q[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
                 next_Q[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-                if self.boundary_condition.bc_type == BC.periodic:
+                if self.boundary_condition is BC_periodic:
                     next_Q[-1,:] += self.lam[0,:,2] * flux[0,:]
                     next_Q[0,:] += self.lam[-1,:,3] * flux[-1,:]
 
@@ -264,19 +321,22 @@ class DTRW(object):
             next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
             # then all the right jump 
             next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-            if self.boundary_condition.bc_type == BC.periodic:
-                next_X[:,-1] += self.lam[:,0,0] * flux[:,0]
-                next_X[:,0] += self.lam[:,-1,1] * flux[:,-1]
+            
+            #if self.boundary_condition.bc_type == BC.periodic:
+            #    next_X[:,-1] += self.lam[:,0,0] * flux[:,0]
+            #    next_X[:,0] += self.lam[:,-1,1] * flux[:,-1]
+
             if X.shape[0] > 1:
                 # The up jump
                 next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
                 next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-                if self.boundary_condition.bc_type == BC.periodic:
-                    next_X[-1,:] += self.lam[0,:,2] * flux[0,:]
-                    next_X[0,:] += self.lam[-1,:,3] * flux[-1,:]
-                   
-            # BUT WHAT ABOUT THE BOUNDARY CONDITIONS!!!!!!!
+                #if self.boundary_condition.bc_type == BC.periodic:
+                #    next_X[-1,:] += self.lam[0,:,2] * flux[0,:]
+                #    next_X[0,:] += self.lam[-1,:,3] * flux[-1,:]
+
+            # Apply the boundary conditions
+            self.boundary_condition.apply_BCs(next_X, flux, self.lam)
 
             # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
             self.Xs[i][:,:,self.n] = next_X
@@ -323,7 +383,7 @@ class DTRW_diffusive(DTRW):
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X_inits, N, alpha, history_length, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.alpha = alpha
         
@@ -427,7 +487,7 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
 
 class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
     
-    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k_1 = k_1 
         self.k_2 = k_2
