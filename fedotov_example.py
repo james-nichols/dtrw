@@ -34,7 +34,10 @@ class DTRW_subdiffusive_with_death(DTRW_subdiffusive):
             self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
         for i in range(len(self.Xs)):
-            self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            # THIS IS WRONG! 
+            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            # This is right!!!! remember you want theta between m and n, not 0 and m!!!!
+            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
 
     def calc_nu(self):
         """Likelihood of birth happening at i, just zero as there's no births """
@@ -47,10 +50,10 @@ L = 10.0
 dX = 0.01
 n_points = int(math.floor(L / dX))
 
-X_init = 6. * np.ones(n_points) 
-#X_init[1] = 1.0 / dX
+X_init = np.zeros(n_points)
+X_init[1] = 1.0 / dX
 
-T = 1.
+T = 2.
 
 alpha = 0.9
 # Note that it works to take dT = tau
@@ -65,21 +68,22 @@ r = dT / (dX * dX / (2.0 * D_alpha))
 
 print "Diffusive sim with dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
 g = 10.
-k = 0.5
-bc_constant = g * 2. * dX / (D_alpha * pow(k, 1.-alpha))
+k = 1.5
+bc_constant = g * dX / (D_alpha * pow(k, 1.-alpha))
 
-# Now solving the analytic version
+# Analytic solution
 xs = np.linspace(0., L, n_points, endpoint=False)
 mu = 2. - alpha
 g_star = g / (math.sqrt(D_alpha * pow(k, 2.-alpha)))
 pst_0 = pow(g_star * math.sqrt((mu+2.)/(2.*mu)), 2. / (mu+2.))
-x_0 = (2. * mu / (2. - mu)) * pow(g_star, (2.-mu)/(mu+2.)) * pow((mu+2.)/(2.*mu), mu/(mu+2.)) * math.sqrt(D_alpha/pow(k,alpha))
+x_0 = (2. * mu / (2. - mu)) * pow(g_star, -(2.-mu)/(mu+2.)) * pow((mu+2.)/(2.*mu), mu/(mu+2.)) * math.sqrt(D_alpha/pow(k,alpha))
 analytic_soln = pst_0 * pow((1 + xs / x_0), -2./alpha)
 
-#fed_bc = BC(BC.fedotov, [alpha, bc_constant, analytic_soln[-1], analytic_soln[0]])
+# Boundary conditions!
 fed_bc = BC_Fedotov(alpha, bc_constant, analytic_soln[-1])
-X_init = analytic_soln
 dir_bc = BC_Dirichelet([analytic_soln[0], analytic_soln[-1]])
+
+X_init = analytic_soln
 
 dtrw = DTRW_subdiffusive_with_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bc)
 #dtrw = DTRW_subdiffusive_with_death(X_init, N, alpha, 1.-exp(k*dT), history_length, boundary_condition=fed_bc)
@@ -90,8 +94,12 @@ dtrw_dir.solve_all_steps()
 
 print "Solutions computed, now creating animation..."
 
+lo = 0 
+hi = 100
+
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,L)
+plt.xlim(xs[lo], xs[hi])
 plt.ylim(0,1.0)
 plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
@@ -100,10 +108,13 @@ line3, = plt.plot([],[],'b-')
 plt.legend([line1, line2], ["DTRW Sol'n", "Analytic Steady State Sol'n"])
 
 def update(i, line1, line2, line3):
-    line1.set_data(xs,dtrw.Xs[0][:,:,i])
-    line2.set_data(xs, analytic_soln)
-    line3.set_data(xs,dtrw_dir.Xs[0][:,:,i])
+    p_0 = analytic_soln[0]
+    p_0_dtrw = dtrw.Xs[0][:,0,i]
+    line1.set_data(xs[lo:hi],dtrw.Xs[0][:,lo:hi,i]/p_0)
+    line2.set_data(xs[lo:hi], analytic_soln[lo:hi]/p_0)
+    line3.set_data(xs[lo:hi],dtrw_dir.Xs[0][:,lo:hi,i]/p_0)
     plt.ylim(0., max(dtrw.Xs[0][:,:,i].max(), analytic_soln.max()))
+    plt.ylim(0., max(dtrw.Xs[0][:,lo:hi,i].max()/p_0, analytic_soln[lo:hi].max()/p_0))
     return line1, line2
 
 # call the animator. blit=True means only re-draw the parts that have changed.

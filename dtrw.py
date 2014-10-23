@@ -28,7 +28,7 @@ class BC_Dirichelet(BC):
 
         next_X[:,0] = self.data[0]
         if len(self.data) > 1: 
-            next_X[:,-1] = self.data[1]
+            #next_X[:,-1] = self.data[1]
             if next_X.shape[0] > 1:
                 next_X[0,:] = self.data[2]
                 next_X[-1,:] = self.data[3]
@@ -43,16 +43,16 @@ class BC_Fedotov(BC):
     def apply_BCs(self, next_X, flux, lam):
         # Only left side has BC
         for i in range(next_X.shape[0]):
-            #next_X[i,0] = scipy.optimize.newton(self.fedotov_func, next_X[i, 1], fprime=self.fedotov_func_prime, args=(next_X[i,1], self.bc_data[0], self.bc_data[1]))
-            next_X[i,0] = pow(self.constant + pow(next_X[i, 2], 2.-self.alpha), 1. / (2.-self.alpha)) 
-            next_X[i,-1] = self.right
-
-    def fedotov_func(x_0, x_1, alpha, const):
+            next_X[i,0] = scipy.optimize.newton(self.fedotov_func, next_X[i, 1], fprime=self.fedotov_func_prime, args=(next_X[i,1], self.alpha, self.constant))
+            #next_X[i,0] = pow(self.constant + pow(next_X[i, 2], 2.-self.alpha), 1. / (2.-self.alpha)) 
+            #next_X[i,-1] = self.right
+        
+    def fedotov_func(self, x_0, x_1, alpha, const):
         # Annoying function to find Fedotov's boundary condition
         return pow(x_0, 1.-alpha) * (x_1 - x_0) + const 
         #return pow(x_1, 1.-alpha) * (x_1 - x_0) + const 
 
-    def fedotov_func_prime(x_0, x_1, alpha, const):
+    def fedotov_func_prime(self, x_0, x_1, alpha, const):
         # Annoying function to find Fedotov's boundary condition
         return (1.-alpha) * pow(x_0, -alpha) * (x_1 - x_0) - pow(x_0, 1.-alpha) 
         #return - pow(x_1, 1.-alpha)
@@ -255,7 +255,6 @@ class DTRW(object):
             else:
                 flux = (Q[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
 
-            pdb.set_trace()
             # Now apply lambda jump probabilities
             next_Q = np.zeros(self.shape)
             
@@ -321,20 +320,15 @@ class DTRW(object):
             next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
             # then all the right jump 
             next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-            
-            #if self.boundary_condition.bc_type == BC.periodic:
-            #    next_X[:,-1] += self.lam[:,0,0] * flux[:,0]
-            #    next_X[:,0] += self.lam[:,-1,1] * flux[:,-1]
-
+             
             if X.shape[0] > 1:
                 # The up jump
                 next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
                 next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-                #if self.boundary_condition.bc_type == BC.periodic:
-                #    next_X[-1,:] += self.lam[0,:,2] * flux[0,:]
-                #    next_X[0,:] += self.lam[-1,:,3] * flux[-1,:]
-
+            #if X[:,2,self.n-1]  > X[:,1,self.n-1]:
+            #if self.n > 100:
+            #    pdb.set_trace()
             # Apply the boundary conditions
             self.boundary_condition.apply_BCs(next_X, flux, self.lam)
 
@@ -386,21 +380,16 @@ class DTRW_subdiffusive(DTRW):
     def __init__(self, X_inits, N, alpha, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.alpha = alpha
-        
         super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
-        #tn = np.array(range(self.history_length+1))
-        #self.psi = pow(-1,tn+1) * scipy.special.gamma(self.alpha + 1) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn + 1))
-        #psi[0] = 0.
-        
         self.psi = np.zeros(self.history_length+1)
         self.psi[0] = 0.
         
         self.psi[1] = self.alpha
         for i in range(2,self.history_length+1):
-            self.psi[i] = -self.psi[i-1] * (self.alpha - float(i) + 1.) / float(i)
+            self.psi[i] = self.psi[i-1] * (float(i) - 1. - self.alpha) / float(i)
         
         # Highly dubious: Normalising psi so that we conservation of particles
         # self.psi[-1] = 1.0 - self.psi[:-1].sum()
@@ -408,19 +397,11 @@ class DTRW_subdiffusive(DTRW):
     
     def calc_Phi(self):
         """PDF of not jumping up to time n"""
-        #tn = np.array(range(self.history_length+1))
-        #self.Phi = pow(-1,tn) * scipy.special.gamma(self.alpha ) / (scipy.special.gamma(tn + 1) * scipy.special.gamma(self.alpha - tn))
-        #self.Phi[0] = 1.
-
         self.Phi = np.ones(self.history_length+1)
         self.Phi[1] = 1.0 - self.alpha
         for i in range(2, self.history_length+1):
-            self.Phi[i] = - self.Phi[i-1] * (self.alpha - float(i)) / float(i)
+            self.Phi[i] = self.Phi[i-1] * (float(i) - self.alpha) / float(i)
         
-        #for i in range(self.history_length+1):
-            # unsure about ending index - might need extra point...
-        #    self.Phi[i] = 1.0-sum(self.psi[:i+1])
-
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
@@ -470,7 +451,9 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
             self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
         for i in range(len(self.Xs)):
-            self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            # Above is wrong! Below is right!!!! remember you want theta between m and n, not 0 and m!!!!
+            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
@@ -524,7 +507,9 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
             self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
         for i in range(len(self.Xs)):
-            self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            # Above is wrong! Below is right!!!! remember you want theta between m and n, not 0 and m!!!!
+            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
