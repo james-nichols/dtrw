@@ -155,6 +155,6 @@ git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).repla
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
 print "Saving animation to", file_name
-pdb.set_trace()
+
 anim.save(file_name, fps=24)#, extra_args=['-vcodec', 'libx264'])
 #plt.show()
