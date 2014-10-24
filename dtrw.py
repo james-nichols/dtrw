@@ -13,7 +13,7 @@ import pdb
 class BC(object):
     def __init__(self):
         pass
-    def apply_BCs(self, next_X, flux, lam):
+    def apply_BCs(self, next_X, flux, dtrw):
         # Apply the boundary conditions, called from the time step routine in DTRW
         pass
 
@@ -21,7 +21,7 @@ class BC_Dirichelet(BC):
     def __init__(self, data):
         self.data = data
 
-    def apply_BCs(self, next_X, flux, lam):
+    def apply_BCs(self, next_X, flux, dtrw):
         if self.data[0].shape != next_X[:,0].shape and self.data[0].shape:
             pdb.set_trace()
             raise Exception('Boundary conditions are incorrect shape, BC data is ' + str(self.data[0].shape) + ' Sol\'n is ' + str(next_X[:,0].shape))
@@ -40,11 +40,11 @@ class BC_Fedotov(BC):
         self.constant = constant
         self.right = right
 
-    def apply_BCs(self, next_X, flux, lam):
+    def apply_BCs(self, next_X, flux, dtrw):
         # Only left side has BC
         for i in range(next_X.shape[0]):
-            next_X[i,0] = scipy.optimize.newton(self.fedotov_func, next_X[i, 1], fprime=self.fedotov_func_prime, args=(next_X[i,1], self.alpha, self.constant))
-            #next_X[i,0] = pow(self.constant + pow(next_X[i, 2], 2.-self.alpha), 1. / (2.-self.alpha)) 
+            #next_X[i,0] = scipy.optimize.newton(self.fedotov_func, next_X[i, 1], fprime=self.fedotov_func_prime, args=(next_X[i,1], self.alpha, self.constant))
+            next_X[i,0] = pow(self.constant + pow(next_X[i, 1], 2.-self.alpha), 1. / (2.-self.alpha)) 
             #next_X[i,-1] = self.right
         
     def fedotov_func(self, x_0, x_1, alpha, const):
@@ -57,19 +57,31 @@ class BC_Fedotov(BC):
         return (1.-alpha) * pow(x_0, -alpha) * (x_1 - x_0) - pow(x_0, 1.-alpha) 
         #return - pow(x_1, 1.-alpha)
 
+class BC_Fedotov_balance(BC):
+
+    def __init__(self):
+        pass
+
+    def apply_BCs(self, next_X, flux, dtrw):
+        # Only left side has BC
+        if dtrw.has_spatial_reactions:
+            next_X[0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+        else:
+            next_X[0] += (dtrw.omegas[0][dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+
 class BC_periodic(object):
     
     def __init__(self):
         pass 
 
-    def apply_BCs(self, next_X, flux, lam):
+    def apply_BCs(self, next_X, flux, dtrw):
         # Apply the boundary conditions
-        next_X[:,-1] += lam[:,0,0] * flux[:,0]
-        next_X[:,0] += lam[:,-1,1] * flux[:,-1]
+        next_X[:,-1] += dtrw.lam[:,0,0] * flux[:,0]
+        next_X[:,0] += dtrw.lam[:,-1,1] * flux[:,-1]
 
         if next_X.shape[0] > 1:
-            next_X[-1,:] += lam[0,:,2] * flux[0,:]
-            next_X[0,:] += lam[-1,:,3] * flux[-1,:]
+            next_X[-1,:] += dtrw.lam[0,:,2] * flux[0,:]
+            next_X[0,:] += dtrw.lam[-1,:,3] * flux[-1,:]
 
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
@@ -326,11 +338,9 @@ class DTRW(object):
                 next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
                 next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-            #if X[:,2,self.n-1]  > X[:,1,self.n-1]:
-            #if self.n > 100:
-            #    pdb.set_trace()
+            
             # Apply the boundary conditions
-            self.boundary_condition.apply_BCs(next_X, flux, self.lam)
+            self.boundary_condition.apply_BCs(next_X, flux, self)
 
             # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
             self.Xs[i][:,:,self.n] = next_X

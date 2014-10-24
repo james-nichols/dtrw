@@ -48,9 +48,9 @@ class DTRW_subdiffusive_with_death(DTRW_subdiffusive):
 
 L = 10.0
 dX = 0.01
-n_points = int(math.floor(L / dX))
+n_points = int(math.floor(L / dX)) 
 
-X_init = np.zeros(n_points)
+X_init = np.zeros(n_points) # Adding -dX point for BC
 X_init[1] = 1.0 / dX
 
 T = 2.
@@ -82,6 +82,7 @@ analytic_soln = pst_0 * pow((1 + xs / x_0), -2./alpha)
 # Boundary conditions!
 fed_bc = BC_Fedotov(alpha, bc_constant, analytic_soln[-1])
 dir_bc = BC_Dirichelet([analytic_soln[0], analytic_soln[-1]])
+fed_bal_bc = BC_Fedotov_balance()
 
 X_init = analytic_soln
 
@@ -89,23 +90,25 @@ dtrw = DTRW_subdiffusive_with_death(X_init, N, alpha, dT*k, history_length, boun
 #dtrw = DTRW_subdiffusive_with_death(X_init, N, alpha, 1.-exp(k*dT), history_length, boundary_condition=fed_bc)
 dtrw.solve_all_steps()
 
-dtrw_dir = DTRW_subdiffusive_with_death(X_init, N, alpha, dT*k, history_length, boundary_condition=dir_bc)
+dtrw_dir = DTRW_subdiffusive_with_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bal_bc)
 dtrw_dir.solve_all_steps()
+
+pdb.set_trace()
 
 print "Solutions computed, now creating animation..."
 
-lo = 0 
-hi = 100
+lo = 1 
+hi = 50 #n_points 
 
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,L)
 plt.xlim(xs[lo], xs[hi])
 plt.ylim(0,1.0)
 plt.xlabel('x')
-line1, = plt.plot([],[],'r-')
+line1, = plt.plot([],[],'rx')
 line2, = plt.plot([],[],'g-')
-line3, = plt.plot([],[],'b-')
-plt.legend([line1, line2], ["DTRW Sol'n", "Analytic Steady State Sol'n"])
+line3, = plt.plot([],[],'bo')
+plt.legend([line1, line3, line2], ["DTRW Sol'n 1", "DTRW Sol'n 2", "Analytic Steady State Sol'n"])
 
 def update(i, line1, line2, line3):
     p_0 = analytic_soln[0]
@@ -115,6 +118,8 @@ def update(i, line1, line2, line3):
     line3.set_data(xs[lo:hi],dtrw_dir.Xs[0][:,lo:hi,i]/p_0)
     plt.ylim(0., max(dtrw.Xs[0][:,:,i].max(), analytic_soln.max()))
     plt.ylim(0., max(dtrw.Xs[0][:,lo:hi,i].max()/p_0, analytic_soln[lo:hi].max()/p_0))
+    print (analytic_soln - dtrw.Xs[0][:,:,i]).sum()
+    print (analytic_soln - dtrw_dir.Xs[0][:,:,i]).sum()
     return line1, line2
 
 # call the animator. blit=True means only re-draw the parts that have changed.
