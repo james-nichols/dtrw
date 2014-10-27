@@ -65,9 +65,11 @@ class BC_Fedotov_balance(BC):
     def apply_BCs(self, next_X, flux, dtrw):
         # Only left side has BC
         if dtrw.has_spatial_reactions:
-            next_X[0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+            next_X[:,0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+            next_X[:,0] += dtrw.lam[:,0,0] * flux[:,0] 
         else:
-            next_X[0] += (dtrw.omegas[0][dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+            next_X[:,0] += (dtrw.omegas[0][dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+            next_X[:,0] += dtrw.lam[:,0,0] * flux[:,0] 
 
 class BC_periodic(object):
     
