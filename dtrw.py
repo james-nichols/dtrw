@@ -10,6 +10,11 @@ from itertools import *
 
 import pdb
 
+# TODO LIST
+# o Inherit theta builder from base class
+# o Potentially remove the has_spatial_reactions property and unify the approach
+# o Make the SIR / compartment model work for testing
+
 class BC(object):
     def __init__(self):
         pass
@@ -71,7 +76,7 @@ class BC_Fedotov_balance(BC):
             next_X[:,0] += (dtrw.omegas[0][dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
             next_X[:,0] += dtrw.lam[:,0,0] * flux[:,0] 
 
-class BC_periodic(object):
+class BC_periodic(BC):
     
     def __init__(self):
         pass 
@@ -359,8 +364,8 @@ class DTRW(object):
     def solve_all_steps(self):
         """Solve the time steps using the memory kernel, available only if we know how to calculate K"""
         for i in range(self.N-1):
-            if i % 100 == 0:
-                print "Solved to step", i
+            #if i % 100 == 0:
+            #    print "Solved to step", i
             self.time_step()
 
 class DTRW_diffusive(DTRW):
@@ -534,6 +539,39 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
         # No birth proces for target cells
         #self.nus[2][:,:,self.n]
         self.nus[3][:,:,self.n] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
+
+class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
+    """ A subdiffusive system as outlined in Fedotov & Falconer, 2014. We check the results
+        against a known stationary solution """
+
+    def __init__(self, X_inits, N, alpha, k, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
+        
+        self.k = k
+        super(DTRW_subdiffusive_fedotov_death, self).__init__(X_inits, N, alpha, history_length, beta, potential, boundary_condition)
+        self.has_spatial_reactions = True
+
+    def calc_omega(self):
+        """ Probability of death between n and n+1"""
+        if self.omegas == None:
+            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+        
+        self.omegas[0][:,:,self.n] = self.k * self.Xs[0][:,:,self.n] #1. - np.exp(-self.k * self.Xs[0][:,:,self.n] * self.Xs[0][:,:,self.n])
+
+    def calc_theta(self):
+        """ Probability of surviving between 0 and n"""
+        if self.thetas == None:
+            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+
+        for i in range(len(self.Xs)):
+            # THIS IS WRONG! 
+            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            # This is right!!!! remember you want theta between m and n, not 0 and m!!!!
+            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
+
+    def calc_nu(self):
+        """Likelihood of birth happening at i, just zero as there's no births """
+        if self.nus == None:
+            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
 class DTRW_ODE(object):
     """ A DTRW class for non spatial, compartment only models, so reactions are easily given either an anomalous  """
