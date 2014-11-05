@@ -15,13 +15,14 @@ from dtrw import *
     for decreasing spatial (and hence also temporal) grid size """
 
 L = 10.0
-T = 10.
+T = 2.
 alpha = 0.9
 D_alpha = 1.
 g = 10.
 k = 1.5
 
 dXs = [0.4, 0.25, 0.1, 0.05, 0.025, 0.01, 0.005, 0.0025]
+#dXs = [0.01, 0.005, 0.0025]
 
 # Analytic solution parameters
 mu = 2. - alpha
@@ -63,7 +64,7 @@ for dX in dXs:
 
     dtrw_bal = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bal_bc)
     dtrw_bal.solve_all_steps()
-
+    
     dtrw_bal_file_name = "DTRW_bal_Soln_{0:f}_{1:f}_{2:f}_{3:f}".format(alpha, T, k, dX)
     np.save(dtrw_bal_file_name, dtrw_bal.Xs[0])
     dtrw_neu_file_name = "DTRW_neu_Soln_{0:f}_{1:f}_{2:f}_{3:f}".format(alpha, T, k, dX)
@@ -76,8 +77,13 @@ for dX in dXs:
     l2_neu_dist = dX * np.linalg.norm(dtrw.Xs[0][:,:,-1] - analytic_soln) 
     linf_neu_dist = np.linalg.norm(dtrw.Xs[0][:,:,-1] - analytic_soln, np.inf)
    
-    bal_l2 =  np.apply_along_axis(np.linalg.norm, 1, dtrw.Xs[0][:,:,:-1] - dtrw.Xs[0][:,:,1:]).flatten()
-    print "\t {0:e} \t {1:e} \t {2:e} \t {3:e}".format(bal_l2[-1], bal_l2[-1] * dX, l2_bal_dist, l2_neu_dist)
+    bal_l2 =  np.apply_along_axis(np.linalg.norm, 1, dtrw_bal.Xs[0][:,:,:-1] - dtrw_bal.Xs[0][:,:,1:]).flatten()
+    bal_linf =  np.apply_along_axis(np.linalg.norm, 1, dtrw_bal.Xs[0][:,:,:-1] - dtrw_bal.Xs[0][:,:,1:], np.inf).flatten()
+    neu_l2 =  np.apply_along_axis(np.linalg.norm, 1, dtrw.Xs[0][:,:,:-1] - dtrw.Xs[0][:,:,1:]).flatten()
+    neu_linf =  np.apply_along_axis(np.linalg.norm, 1, dtrw.Xs[0][:,:,:-1] - dtrw.Xs[0][:,:,1:], np.inf).flatten()
+
+    print "Balance mthd \t {0:e} \t {1:e} \t {2:e} \t {3:e} \t {4:e}".format(bal_l2[-1], bal_l2[-1] * dX, bal_linf[-1], l2_bal_dist, linf_bal_dist)
+    print "Neumann mthd \t {0:e} \t {1:e} \t {2:e} \t {3:e} \t {4:e}".format(neu_l2[-1], neu_l2[-1] * dX, neu_linf[-1], l2_neu_dist, linf_neu_dist)
     
     """
     lo = 0.
