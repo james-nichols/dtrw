@@ -90,11 +90,25 @@ class BC_periodic(BC):
             next_X[-1,:] += dtrw.lam[0,:,2] * flux[0,:]
             next_X[0,:] += dtrw.lam[-1,:,3] * flux[-1,:]
 
+class BC_zero_flux(BC):
+    
+    def __init__(self):
+        pass 
+
+    def apply_BCs(self, next_X, flux, dtrw):
+        # Apply the boundary conditions
+        next_X[:,-1] = next_X[:,-2]
+        next_X[:,0] = next_X[:,1]
+
+        if next_X.shape[0] > 1:
+            next_X[-1,:] = next_X[-2,:]
+            next_X[0,:] = next_X[1,:]
+
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X_inits, N, history_length = 2, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, history_length = 2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
@@ -134,7 +148,7 @@ class DTRW(object):
         # This is the time-step counter
         self.n = 0
     
-        self.beta = beta
+        self.boltz_beta = boltz_beta
         self.calc_lambda(potential)
         self.calc_psi()
         self.calc_Phi()
@@ -164,7 +178,7 @@ class DTRW(object):
             if len(potential.shape) == 1: # As np.dstack introduces two more dimensions, in the 1-D case we need to as well
                 potential = potential[np.newaxis]
             # Calculate the transition probabilities Boltzmann style based on potentials.
-            boltz_func = np.exp(-self.beta * potential)
+            boltz_func = np.exp(-self.boltz_beta * potential)
             boltz_denom = np.zeros(boltz_func.shape)
             boltz_denom[:,:-1] += boltz_func[:,1:]
             boltz_denom[:,1:] += boltz_func[:,:-1]
@@ -370,11 +384,11 @@ class DTRW(object):
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X_inits, N, r, history_length=2, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, r, history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         # Probability of jumping in one step 
         self.r = r
 
-        super(DTRW_diffusive, self).__init__(X_inits, N, history_length, beta, potential, boundary_condition)
+        super(DTRW_diffusive, self).__init__(X_inits, N, history_length, boltz_beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -394,10 +408,10 @@ class DTRW_diffusive(DTRW):
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X_inits, N, alpha, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.alpha = alpha
-        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, beta, potential, boundary_condition)
+        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, boltz_beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -431,15 +445,14 @@ class DTRW_subdiffusive(DTRW):
 
 class DTRW_diffusive_with_transition(DTRW_diffusive):
     
-    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length=2, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k_1 = k_1 
         self.k_2 = k_2
-        # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
         self.clearance_rate = 0. #clearance_rate 
         self.infection_rate = infection_rate
 
-        super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, r, history_length, beta, potential, boundary_condition)
+        super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, r, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -487,15 +500,14 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
 
 class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
     
-    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k_1 = k_1 
         self.k_2 = k_2
-        # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
         self.clearance_rate = 0. #clearance_rate 
         self.infection_rate = infection_rate
 
-        super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, history_length, beta, potential, boundary_condition)
+        super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -544,10 +556,10 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
     """ A subdiffusive system as outlined in Fedotov & Falconer, 2014. We check the results
         against a known stationary solution """
 
-    def __init__(self, X_inits, N, alpha, k, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, k, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k = k
-        super(DTRW_subdiffusive_fedotov_death, self).__init__(X_inits, N, alpha, history_length, beta, potential, boundary_condition)
+        super(DTRW_subdiffusive_fedotov_death, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
         self.has_spatial_reactions = True
 
     def calc_omega(self):
