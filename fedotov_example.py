@@ -11,39 +11,6 @@ import pdb
 
 from dtrw import *
 
-class DTRW_subdiffusive_with_death(DTRW_subdiffusive):
-    """ A subdiffusive system as outlined in Fedotov & Falconer, 2014. We check the results
-        against a known stationary solution """
-
-    def __init__(self, X_inits, N, alpha, k, history_length = 0, beta = 0., potential = np.array([]), boundary_condition=BC()):
-        
-        self.k = k
-        super(DTRW_subdiffusive_with_death, self).__init__(X_inits, N, alpha, history_length, beta, potential, boundary_condition)
-        self.has_spatial_reactions = True
-
-    def calc_omega(self):
-        """ Probability of death between n and n+1"""
-        if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-        
-        self.omegas[0][:,:,self.n] = self.k * self.Xs[0][:,:,self.n] #1. - np.exp(-self.k * self.Xs[0][:,:,self.n] * self.Xs[0][:,:,self.n])
-
-    def calc_theta(self):
-        """ Probability of surviving between 0 and n"""
-        if self.thetas == None:
-            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-
-        for i in range(len(self.Xs)):
-            # THIS IS WRONG! 
-            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
-            # This is right!!!! remember you want theta between m and n, not 0 and m!!!!
-            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
-
-    def calc_nu(self):
-        """Likelihood of birth happening at i, just zero as there's no births """
-        if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-
 """ Here we start the script that does the simulation, complete with plotting routine """
 
 L = 10.0
@@ -66,7 +33,7 @@ D_alpha = dX * dX / (2.0 * pow(dT, alpha))
 # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
 r = dT / (dX * dX / (2.0 * D_alpha))
 
-print "Diffusive sim with dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
+print "Diffusive sim with D_alpha =", D_alpha, "dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
 g = 10.
 k = 1.5
 bc_constant = g * dX / (D_alpha * pow(k, 1.-alpha))
@@ -86,20 +53,20 @@ fed_bal_bc = BC_Fedotov_balance()
 
 X_init = analytic_soln
 
-dtrw = DTRW_subdiffusive_with_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bc)
-#dtrw = DTRW_subdiffusive_with_death(X_init, N, alpha, 1.-exp(k*dT), history_length, boundary_condition=fed_bc)
+dtrw = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bc)
+#dtrw = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, 1.-exp(k*dT), history_length, boundary_condition=fed_bc)
 dtrw.solve_all_steps()
 
-dtrw_dir = DTRW_subdiffusive_with_death(X_init, N, alpha, dT*k, history_length, boundary_condition=dir_bc)
+dtrw_dir = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=dir_bc)
 dtrw_dir.solve_all_steps()
 
-dtrw_bal = DTRW_subdiffusive_with_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bal_bc)
+dtrw_bal = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bal_bc)
 dtrw_bal.solve_all_steps()
 
 print "Solutions computed, now creating animation..."
 
-lo = 1 
-hi = 50 #n_points 
+lo = n_points - 10 
+hi = n_points-1 
 
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,L)
