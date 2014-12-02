@@ -1,5 +1,9 @@
 #! /usr/bin/env python
 
+# Libraries are in parent directory
+import sys
+sys.path.append('../')
+
 import math
 import numpy as np
 import scipy as sp
