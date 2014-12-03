@@ -13,15 +13,14 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib import cm
 
-class DTRW_diffusive_SIS(DTRW_diffusive):
+class DTRW_diffusive_two_way(DTRW_diffusive):
     
-    def __init__(self, X_inits, N, alpha, beta, mu, gamma, history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, k_1, k_2, history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
         
-        self.beta = beta
-        self.mu = mu
-        self.gamma = gamma
-            
-        super(DTRW_diffusive_SIS, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
+        self.k_1 = k_1
+        self.k_2 = k_2
+
+        super(DTRW_diffusive_two_way, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -31,12 +30,10 @@ class DTRW_diffusive_SIS(DTRW_diffusive):
             self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
             
         # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
-        # S 
-        self.omegas[0][:,:,self.n] = 1. - np.exp(- self.beta * self.Xs[1][:,:,self.n] - mu) 
-        #self.omegas[0][:,:,self.n] = self.beta * self.Xs[1][:,:,self.n] + self.mu
-        # I 
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-(self.mu + self.gamma))
-        #self.omegas[1][:,:,self.n] = self.mu + self.gamma
+        # a 
+        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
+        # b 
+        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2)
 
     def calc_theta(self):
         """ Probability of surviving between 0 and n"""
@@ -54,20 +51,17 @@ class DTRW_diffusive_SIS(DTRW_diffusive):
         if self.nus == None:
             self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = (1. - np.exp(-(self.mu + self.gamma))) * self.Xs[1][:,:,self.n]
-        #self.nus[0][:,:,self.n] = self.gamma * self.Xs[1][:,:,self.n] + self.mu
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.beta * self.Xs[1][:,:,self.n])) * self.Xs[0][:,:,self.n]
-        #self.nus[1][:,:,self.n] = self.beta * self.Xs[1][:,:,self.n] * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
 
-class DTRW_subdiffusive_SIS(DTRW_subdiffusive):
-    
-    def __init__(self, X_inits, N, alpha, beta, mu, gamma, history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
+class DTRW_subdiffusive_two_way(DTRW_subdiffusive):
+     
+    def __init__(self, X_inits, N, alpha, k_1, k_2, history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
         
-        self.beta = beta
-        self.mu = mu
-        self.gamma = gamma
-            
-        super(DTRW_subdiffusive_SIS, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
+        self.k_1 = k_1
+        self.k_2 = k_2
+ 
+        super(DTRW_subdiffusive_two_way, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -77,12 +71,10 @@ class DTRW_subdiffusive_SIS(DTRW_subdiffusive):
             self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
             
         # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
-        # S 
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.beta * self.Xs[1][:,:,self.n] - mu) 
-        #self.omegas[0][:,:,self.n] = self.beta * self.Xs[1][:,:,self.n] + self.mu
-        # I 
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-(self.mu + self.gamma))
-        #self.omegas[1][:,:,self.n] = self.mu + self.gamma
+        # a 
+        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
+        # b 
+        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2)
 
     def calc_theta(self):
         """ Probability of surviving between 0 and n"""
@@ -100,128 +92,112 @@ class DTRW_subdiffusive_SIS(DTRW_subdiffusive):
         if self.nus == None:
             self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = (1. - np.exp(-(self.mu + self.gamma))) * self.Xs[1][:,:,self.n]
-        #self.nus[0][:,:,self.n] = self.gamma * self.Xs[1][:,:,self.n] + self.mu
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.beta * self.Xs[1][:,:,self.n])) * self.Xs[0][:,:,self.n]
-        #self.nus[1][:,:,self.n] = self.beta * self.Xs[1][:,:,self.n] * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
 
-n_points = 100
-L = 1.0
-dX = L / n_points
-xs = np.linspace(0., 1., n_points, endpoint=True)
-xs = np.arange(-dX, 1+2.*dX, dX)
+L = 2.0
+dX = 0.01
+xs = np.arange(-1., 1.+dX, dX)
+n_points = len(xs)
 
-S_init = np.ones(n_points)
-S_init = np.ones(n_points+3)
-I_init = np.exp(- 25. * (xs - 0.5) * (xs - 0.5))
+a_init = np.zeros(n_points)
+a_init[n_points / 2] = 1 / dX
+b_init = np.zeros(n_points)
 
 alpha_1 = 0.8
-alpha_2 = 0.6
-D_alpha = 0.005
+alpha_2 = 0.8
 
-T = 20.
+D_alpha = 1.0
+
+T = 0.1
 dT_1 = pow((dX * dX / (2.0 * D_alpha)), 1./alpha_1)
 dT_2 = pow((dX * dX / (2.0 * D_alpha)), 1./alpha_2)
-dT = 0.001
+dT = 0.5 * dX * dX / (2.0 * D_alpha) 
+
 N = int(math.floor(T / dT))+1
 N_1 = int(math.floor(T / dT_1))+1
 N_2 = int(math.floor(T / dT_2))+1
 history_length = N
+
 ts = np.array(np.arange(N) * dT)
 ts_1 = np.array(np.arange(N_1) * dT_1)
 ts_2 = np.array(np.arange(N_2) * dT_2)
 
-beta = 0.2
-mu = 0.0
-gamma = 0.1
-
-#beta = 0.5 * dT
-#mu = 0.2 * dT
-#gamma = 0.01 * dT
+k_1 = k_2 = 1.
 
 # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
 r = dT / (dX * dX / (2.0 * D_alpha))
 
-print "DTRW for dX =", dX, "dT =", dT, "r =", r
-print "DTRW subdiff for dX =", dX, "dT =", dT_1, "alpha =", alpha_1
-print "DTRW subdiff for dX =", dX, "dT =", dT_2, "alpha =", alpha_2
+print "DTRW for dX =", dX, "dT =", dT, "r =", r, "N =", N
+print "DTRW subdiff for dX =", dX, "dT =", dT_1, "alpha =", alpha_1, "N =", N_1
+print "DTRW subdiff for dX =", dX, "dT =", dT_2, "alpha =", alpha_2, "N =", N_2
 
 bc = BC_zero_flux()
 
-dtrw_sub_1 = DTRW_subdiffusive_SIS([S_init, I_init], N_1, alpha_1, beta * dT_1, mu * dT_1, gamma * dT_1, history_length=N_1, boundary_condition=bc)
-dtrw_sub_2 = DTRW_subdiffusive_SIS([S_init, I_init], N_2, alpha_2, beta * dT_2, mu * dT_2, gamma * dT_2, history_length=N_2, boundary_condition=bc)
-dtrw = DTRW_diffusive_SIS([S_init, I_init], N, r, beta * dT, mu * dT, gamma * dT, history_length=2, boundary_condition=bc)
+dtrw_sub_1 = DTRW_subdiffusive_two_way([a_init, b_init], N_1, alpha_1, k_1 * dT_1, k_2 * dT_1, history_length=N_1, boundary_condition=bc)
+dtrw_sub_2 = DTRW_subdiffusive_two_way([a_init, b_init], N_2, alpha_2, k_1 * dT_2, k_2 * dT_2, history_length=N_2, boundary_condition=bc)
+dtrw = DTRW_diffusive_two_way([a_init, b_init], N, r, k_1 * dT, k_2 * dT, history_length=2, boundary_condition=bc)
 
 dtrw.solve_all_steps()
 print "Exp case solved"
 dtrw_sub_1.solve_all_steps()
 print "alpha =", alpha_1, "case solved"
-dtrw_sub_2.solve_all_steps()
-print "alpha =", alpha_2, "case solved"
+#dtrw_sub_2.solve_all_steps()
+#print "alpha =", alpha_2, "case solved"
+
+pdb.set_trace()
 
 dtrw_file_name = "DTRW_dT_{0:f}_dX_{1:f}.csv".format(dT, dX)
 
-np.savetxt("S_" + dtrw_file_name, dtrw.Xs[0][0,1:-1,:], delimiter=",")
-np.savetxt("I_" + dtrw_file_name, dtrw.Xs[1][0,1:-1,:], delimiter=",")
+np.savetxt("a_" + dtrw_file_name, dtrw.Xs[0][0,1:-1,:], delimiter=",")
+np.savetxt("b_" + dtrw_file_name, dtrw.Xs[1][0,1:-1,:], delimiter=",")
 
 dtrw_file_name_alpha_1 = "DTRW_dT_{0:f}_dX_{1:f}_alpha_{2:f}.csv".format(dT, dX, alpha_1)
 dtrw_file_name_alpha_2 = "DTRW_dT_{0:f}_dX_{1:f}_alpha_{2:f}.csv".format(dT, dX, alpha_2)
-np.savetxt("S_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[0][0,1:-1,:], delimiter=",")
-np.savetxt("I_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[1][0,1:-1,:], delimiter=",")
-np.savetxt("S_" + dtrw_file_name_alpha_2, dtrw_sub_2.Xs[0][0,1:-1,:], delimiter=",")
-np.savetxt("I_" + dtrw_file_name_alpha_2, dtrw_sub_2.Xs[1][0,1:-1,:], delimiter=",")
+np.savetxt("a_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[0][0,1:-1,:], delimiter=",")
+np.savetxt("b_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[1][0,1:-1,:], delimiter=",")
+np.savetxt("a_" + dtrw_file_name_alpha_2, dtrw_sub_2.Xs[0][0,1:-1,:], delimiter=",")
+np.savetxt("b_" + dtrw_file_name_alpha_2, dtrw_sub_2.Xs[1][0,1:-1,:], delimiter=",")
 
 t_alpha_1 = "T_alpha_{0:f}.csv".format(alpha_1)
 t_alpha_2 = "T_alpha_{0:f}.csv".format(alpha_2)
 np.savetxt(t_alpha_1, ts_1, delimiter=",")
 np.savetxt(t_alpha_2, ts_2, delimiter=",")
 
-S_Isaac = np.loadtxt("STable_dx_0p01_dt_0p001.csv")
-I_Isaac = np.loadtxt("ITable_dx_0p01_dt_0p001.csv")
-t_Isaac = np.linspace(0,10,10001,endpoint=True)
+fig = plt.figure(figsize=(8,8))
 
-Xs, Ts = np.meshgrid(xs, ts)
+#ax1 = fig.add_subplot(1,2,1)
+plt.xlim(-1., 1.)
+plt.ylim(0., 5.)
+line1, = plt.plot([],[],'r-')
+line2, = plt.plot([],[],'g-')
+line3, = plt.plot([],[],'k-')
+plt.legend([line1, line2, line3], ["a", "b", "sum"])
 
-xs = np.linspace(0., 1., n_points, endpoint=True)
+#ax2 = fig.add_subplot(1,2,2)
+#line4, = ax2.plot([],[],'r-')
+#line5, = ax2.plot([],[],'g-')
+#line6, = ax2.plot([],[],'k-')
+#plt.legend([line4, line5, line6], ["a", "b", "sum"])
 
-fig = plt.figure(figsize=(12,8))
+def update(i, line1, line2, line3):
+    line1.set_data(xs,dtrw_sub_1.Xs[0][:,:,i])
+    line2.set_data(xs,dtrw_sub_1.Xs[1][:,:,i])
+    line3.set_data(xs,dtrw_sub_1.Xs[0][:,:,i] + dtrw_sub_1.Xs[1][:,:,i])
 
-ax1 = fig.add_subplot(3, 2, 1)
-pc1 = ax1.pcolor(ts, xs, dtrw.Xs[0][0,1:-1,:])
-#CS1 = ax1.plot_surface(Ts, Xs, dtrw.Xs[0][0,:,:])
-#CS1 = ax1.contour(Ts, Xs, dtrw.Xs[0][0,:,:])
+    return line1, line2, line3
 
-ax2 = fig.add_subplot(3, 2, 2)
-pc2 = ax2.pcolor(ts, xs, dtrw.Xs[1][0,1:-1,:])
-#CS2 = ax2.contour(Ts, Xs, dtrw.Xs[1][0,:,:])
-"""
-ax3 = fig.add_subplot(3, 2, 3)
-pc3 = ax3.pcolor(ts, xs, dtrw_sub.Xs[0][0,:,:])
-#CS3 = ax3.contour(Ts, Xs, dtrw_sub.Xs[0][0,:,:])
-
-ax4 = fig.add_subplot(3, 2, 4)
-pc4 = ax4.pcolor(ts, xs, dtrw_sub.Xs[1][0,:,:])
-#CS4 = ax4.contour(Ts, Xs, dtrw_sub.Xs[1][0,:,:])
-"""
-ax3 = fig.add_subplot(3, 2, 3)
-pc3 = ax3.pcolor(ts, xs, dtrw.Xs[0][0,1:-1,:] - S_Isaac.transpose())
-#CS3 = ax3.contour(Ts, Xs, dtrw_sub.Xs[0][0,:,:])
-
-ax4 = fig.add_subplot(3, 2, 4)
-pc4 = ax4.pcolor(ts, xs, dtrw.Xs[1][0,1:-1,:] - I_Isaac.transpose())
-#CS4 = ax4.contour(Ts, Xs, dtrw_sub.Xs[1][0,:,:])
-
-ax5 = fig.add_subplot(3, 2, 5)
-pc5 = ax5.pcolor(t_Isaac, xs, S_Isaac.transpose())
-#CS3 = ax3.contour(Ts, Xs, dtrw_sub.Xs[0][0,:,:])
-
-ax6 = fig.add_subplot(3, 2, 6)
-pc6 = ax6.pcolor(t_Isaac, xs, I_Isaac.transpose())
-#CS4 = ax4.contour(Ts, Xs, dtrw_sub.Xs[1][0,:,:])
-
-plt.show()
+# call the animator. blit=True means only re-draw the parts that have changed.
+anim = animation.FuncAnimation(fig, update, 
+        frames=N_1, fargs=(line1, line2, line3), interval=10)
 
 import inspect, os, subprocess
 exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
 git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
+
+file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
+print "Saving animation to", file_name
+
+#anim.save(file_name, fps=24)
+plt.show()
 
