@@ -28,7 +28,6 @@ class BC_Dirichelet(BC):
 
     def apply_BCs(self, next_X, flux, dtrw):
         if self.data[0].shape != next_X[:,0].shape and self.data[0].shape:
-            pdb.set_trace()
             raise Exception('Boundary conditions are incorrect shape, BC data is ' + str(self.data[0].shape) + ' Sol\'n is ' + str(next_X[:,0].shape))
 
         next_X[:,0] = self.data[0]
@@ -97,18 +96,23 @@ class BC_zero_flux(BC):
 
     def apply_BCs(self, next_X, flux, dtrw):
         # Apply the boundary conditions
-        next_X[:,-1] = next_X[:,-2]
-        next_X[:,0] = next_X[:,1]
+        #next_X[:,-1] = next_X[:,-2]
+        #next_X[:,0] = next_X[:,1]
+        # New regime: simply reflect flux back where it came from!
+        next_X[:,0] += dtrw.lam[:,0,0] * flux[:,0]
+        next_X[:,-1] += dtrw.lam[:,-1,1] * flux[:,-1]
 
         if next_X.shape[0] > 1:
-            next_X[-1,:] = next_X[-2,:]
-            next_X[0,:] = next_X[1,:]
+            #next_X[-1,:] = next_X[-2,:]
+            #next_X[0,:] = next_X[1,:]
+            next_X[0,:] += dtrw.lam[0,:,2] * flux[0,:]
+            next_X[-1,:] += dtrw.lam[-1,:,3] * flux[-1,:]
 
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X_inits, N, history_length = 2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, r = 1., history_length = 2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         """X is the initial concentration field, N is the number of time steps to simulate"""
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
@@ -142,6 +146,8 @@ class DTRW(object):
         else:
             self.history_length = history_length
         
+        self.r = r
+
         self.boundary_condition = boundary_condition
         self.has_spatial_reactions = False
 
@@ -343,22 +349,22 @@ class DTRW(object):
             if self.has_spatial_reactions:
                 # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
                 flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
+                next_X = X[:,:,self.n-1] - self.r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
             else:
                 flux = (X[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - flux - omega[self.n-1] * X[:,:,self.n-1] + nu[self.n-1]
-
+                next_X = X[:,:,self.n-1] - self.r * flux - omega[self.n-1] * X[:,:,self.n-1] + nu[self.n-1]
+            
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
-            next_X[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
+            next_X[:,:-1] += self.r * (self.lam[:,:,0] * flux)[:,1:]
             # then all the right jump 
-            next_X[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-             
+            next_X[:,1:] += self.r * (self.lam[:,:,1] * flux)[:,:-1]
+            
             if X.shape[0] > 1:
                 # The up jump
-                next_X[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
+                next_X[:-1,:] += self.r * (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
-                next_X[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
+                next_X[1:,:] += self.r * (self.lam[:,:,3] * flux)[:-1,:]
             
             # Apply the boundary conditions
             self.boundary_condition.apply_BCs(next_X, flux, self)
@@ -384,34 +390,34 @@ class DTRW(object):
 
 class DTRW_diffusive(DTRW):
 
-    def __init__(self, X_inits, N, r, history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, omega, r = 1.0, history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         # Probability of jumping in one step 
-        self.r = r
+        self.omega = omega
 
-        super(DTRW_diffusive, self).__init__(X_inits, N, history_length, boltz_beta, potential, boundary_condition)
+        super(DTRW_diffusive, self).__init__(X_inits, N, r, history_length, boltz_beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
-        self.psi = np.array([self.r * pow(1. - self.r, i-1) for i in range(self.history_length+1)])
+        self.psi = np.array([self.r * pow(1. - self.omega, i-1) for i in range(self.history_length+1)])
         self.psi[0] = 0.
 
     def calc_Phi(self):
         """PDF of not jumping up to time n"""
-        self.Phi = np.array([pow(1. - self.r, i) for i in range(self.history_length+1)])
+        self.Phi = np.array([pow(1. - self.omega, i) for i in range(self.history_length+1)])
     
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
          
         # In the exponential case it's quite simply...
-        self.K[1] = self.r
+        self.K[1] = self.omega
 
 class DTRW_subdiffusive(DTRW):
 
-    def __init__(self, X_inits, N, alpha, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, r = 1.0, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.alpha = alpha
-        super(DTRW_subdiffusive, self).__init__(X_inits, N, history_length, boltz_beta, potential, boundary_condition)
+        super(DTRW_subdiffusive, self).__init__(X_inits, N, r, history_length, boltz_beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
@@ -445,14 +451,14 @@ class DTRW_subdiffusive(DTRW):
 
 class DTRW_diffusive_with_transition(DTRW_diffusive):
     
-    def __init__(self, X_inits, N, r, k_1, k_2, clearance_rate, infection_rate, history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, omega, k_1, k_2, clearance_rate, infection_rate, r = 1., history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k_1 = k_1 
         self.k_2 = k_2
         self.clearance_rate = 0. #clearance_rate 
         self.infection_rate = infection_rate
 
-        super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, r, history_length, boltz_beta, potential, boundary_condition)
+        super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, omega, r, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -500,14 +506,14 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
 
 class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
     
-    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, k_1, k_2, clearance_rate, infection_rate, r = 1., history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k_1 = k_1 
         self.k_2 = k_2
         self.clearance_rate = 0. #clearance_rate 
         self.infection_rate = infection_rate
 
-        super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
+        super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, r, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -556,10 +562,10 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
     """ A subdiffusive system as outlined in Fedotov & Falconer, 2014. We check the results
         against a known stationary solution """
 
-    def __init__(self, X_inits, N, alpha, k, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, k, r=1., history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         
         self.k = k
-        super(DTRW_subdiffusive_fedotov_death, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
+        super(DTRW_subdiffusive_fedotov_death, self).__init__(X_inits, N, alpha, r, history_length, boltz_beta, potential, boundary_condition)
         self.has_spatial_reactions = True
 
     def calc_omega(self):
