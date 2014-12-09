@@ -15,13 +15,13 @@ from matplotlib import cm
 
 class DTRW_diffusive_SIS(DTRW_diffusive):
     
-    def __init__(self, X_inits, N, alpha, beta, mu, gamma, history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, beta, mu, gamma, r=1., history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
         
         self.beta = beta
         self.mu = mu
         self.gamma = gamma
             
-        super(DTRW_diffusive_SIS, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
+        super(DTRW_diffusive_SIS, self).__init__(X_inits, N, alpha, r, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
@@ -61,13 +61,13 @@ class DTRW_diffusive_SIS(DTRW_diffusive):
 
 class DTRW_subdiffusive_SIS(DTRW_subdiffusive):
     
-    def __init__(self, X_inits, N, alpha, beta, mu, gamma, history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, N, alpha, beta, mu, gamma, r=1., history_length=0, boltz_beta=0., potential = np.array([]), boundary_condition=BC()):
         
         self.beta = beta
         self.mu = mu
         self.gamma = gamma
             
-        super(DTRW_subdiffusive_SIS, self).__init__(X_inits, N, alpha, history_length, boltz_beta, potential, boundary_condition)
+        super(DTRW_subdiffusive_SIS, self).__init__(X_inits, N, alpha, r, history_length, boltz_beta, potential, boundary_condition)
    
         self.has_spatial_reactions = True
 
