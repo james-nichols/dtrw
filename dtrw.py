@@ -98,15 +98,16 @@ class BC_zero_flux(BC):
         # Apply the boundary conditions
         #next_X[:,-1] = next_X[:,-2]
         #next_X[:,0] = next_X[:,1]
+        
         # New regime: simply reflect flux back where it came from!
-        next_X[:,0] += dtrw.lam[:,0,0] * flux[:,0]
-        next_X[:,-1] += dtrw.lam[:,-1,1] * flux[:,-1]
+        next_X[:,0] += dtrw.r * dtrw.lam[:,0,0] * flux[:,0]
+        next_X[:,-1] += dtrw.r * dtrw.lam[:,-1,1] * flux[:,-1]
 
         if next_X.shape[0] > 1:
             #next_X[-1,:] = next_X[-2,:]
             #next_X[0,:] = next_X[1,:]
-            next_X[0,:] += dtrw.lam[0,:,2] * flux[0,:]
-            next_X[-1,:] += dtrw.lam[-1,:,3] * flux[-1,:]
+            next_X[0,:] += dtrw.r * dtrw.lam[0,:,2] * flux[0,:]
+            next_X[-1,:] += dtrw.r * dtrw.lam[-1,:,3] * flux[-1,:]
 
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
