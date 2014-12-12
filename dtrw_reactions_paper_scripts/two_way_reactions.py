@@ -109,23 +109,25 @@ dTs = [1.e-3, 5.e-4, 1.e-4, 5.e-5, 1.e-5]
 dXs = [0.1, 0.05, 0.02, 0.01]
 dTs = [.001, .0001, .00001, .000001]
 dXs = [0.1, 0.05, 0.02]
-dTs = [.001, .0001, .00001]
-ns = [21, 41, 81]
+
+dTs = [.001, .0001, .00005, .00001]
+nXs = [21, 41, 61, 81]
+
 #for dT in dTs:
-for j in range(len(ns)):
-    dX = dXs[j]
-    n  = ns[j]
+for j in range(len(nXs)):
+    #dX = dXs[j]
+    nX  = nXs[j]
     dT = dTs[j]
     
     #dX = math.sqrt(2. * D_alpha * pow(dT, alpha_1))
 
-    dX = 2. / n
+    dX = 2. / nX
     L = math.floor(1.0 / dX)
     x_r = np.arange(0., 1., dX)
     x_l = np.arange(-dX, -1., -dX)
     xs = np.append(x_l[::-1], x_r)
     
-    #xs = np.linspace(-1., 1., n, endpoint=True)
+    #xs = np.linspace(-1., 1., nX, endpoint=True)
     n_points = len(xs)
 
     r = 2. * D_alpha * pow(dT, alpha_1) / (dX * dX)
@@ -133,9 +135,8 @@ for j in range(len(ns)):
     # We make the init conditions slightly bigger for the zero flux boundaries
     a_init = np.zeros(n_points)
     a_init[n_points / 2 ] = 1. / dX
-    #a_init[n_points / 2 -1] = .5 / dX
     b_init = np.zeros(n_points)
-    pdb.set_trace()
+    
     N = int(math.floor(T / dT))+1
     N_1 = int(math.floor(T / dT))+1
     history_length = N
@@ -158,7 +159,7 @@ for j in range(len(ns)):
     print "Exp case solved"
     dtrw_sub_1.solve_all_steps()
     print "alpha =", alpha_1, "case solved"
-
+    
     dtrw_file_name = "DTRW_dT_{0:f}_dX_{1:f}.csv".format(dT, dX)
 
     np.savetxt("a_" + dtrw_file_name, dtrw.Xs[0][0,:,:], delimiter=",")
