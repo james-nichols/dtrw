@@ -26,7 +26,7 @@ dT = r * dX * dX / (2.0 * D_alpha)
 N = int(math.floor(T / dT))
 
 dtrw = DTRW_diffusive(X_init, N, r)
-dtrw_X = DTRW_diffusive(X_init, N, r, N)
+dtrw_X = DTRW_diffusive(X_init, N, r, history_length=N)
 
 print dtrw.psi, dtrw.psi.sum()
 print dtrw.Phi

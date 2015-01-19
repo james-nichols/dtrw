@@ -32,8 +32,8 @@ r = dT / (dX * dX / (2.0 * D_alpha))
 
 print "Diffusive sim with dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
 
-dtrw = DTRW_diffusive(X_init, N, r, history_length)
-dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length)
+dtrw = DTRW_diffusive(X_init, N, r, history_length=history_length)
+dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length=history_length)
 
 print "Left jump probs: ", dtrw.lam[:,:,0]
 print "Right jump probs: ", dtrw.lam[:,:,1]
