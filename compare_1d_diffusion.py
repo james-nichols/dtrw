@@ -25,15 +25,14 @@ D_alpha = 0.1
 
 dT = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
 N = int(math.floor(T / dT))
-history_length = N
 
 # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
 r = dT / (dX * dX / (2.0 * D_alpha))
 
 print "Diffusive sim with dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
 
-dtrw = DTRW_diffusive(X_init, N, r, history_length)
-dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length)
+dtrw = DTRW_diffusive(X_init, N, r)
+dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length=N)
 
 print "Left jump probs: ", dtrw.lam[:,:,0]
 print "Right jump probs: ", dtrw.lam[:,:,1]
@@ -50,8 +49,8 @@ plt.xlim(0,L)
 plt.ylim(0,0.2)
 plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
-line2, = plt.plot([],[],'g-')
-line3, = plt.plot([],[],'b-')
+line2, = plt.plot([],[],'gx')
+line3, = plt.plot([],[],'bo')
 plt.legend([line1, line2, line3], ["Normal diffusion", "Sub-diffusion, alpha=3/4", "analytic diffusion"])
 
 def update(i, line1, line2, line3):
