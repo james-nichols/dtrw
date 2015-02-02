@@ -35,7 +35,7 @@ nu = 0.0 #0.0005
 boundary_condition = BC_periodic()
 
 #dtrw = DTRW_diffusive(X_init, N, dT, tau, omega, nu, history_length, boundary_condition)
-dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length, boltz_beta, potential, boundary_condition)
+dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length=history_length, boltz_beta=boltz_beta, potential=potential, boundary_condition=boundary_condition)
 #dtrw.solve_all_steps()
 
 print "Solving DTRW for", N, "time steps to time", T, ". dT =", dT
