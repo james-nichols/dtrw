@@ -45,12 +45,12 @@ print "Solutions computed, now creating animation..."
 xs = np.linspace(0., L, n_points, endpoint=False)
 
 fig = plt.figure(figsize=(8,8))
-plt.xlim(0,L)
-plt.ylim(0,0.2)
+plt.xlim(L/4,3*L/4)
+plt.ylim(0,0.1)
 plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
-line2, = plt.plot([],[],'gx')
-line3, = plt.plot([],[],'bo')
+line2, = plt.plot([],[],'g-')
+line3, = plt.plot([],[],'bx')
 plt.legend([line1, line2, line3], ["Normal diffusion", "Sub-diffusion, alpha=3/4", "analytic diffusion"])
 
 def update(i, line1, line2, line3):

@@ -14,11 +14,12 @@ import pdb
 # o Inherit theta builder from base class
 # o Potentially remove the has_spatial_reactions property and unify the approach
 # o Make the SIR / compartment model work for testing
+# o Potentially put r back in to lambda and do it that way, remove from apply_BC argument
 
 class BC(object):
     def __init__(self):
         pass
-    def apply_BCs(self, next_X, flux, dtrw):
+    def apply_BCs(self, next_X, flux, r, dtrw):
         # Apply the boundary conditions, called from the time step routine in DTRW
         pass
 
@@ -26,7 +27,7 @@ class BC_Dirichelet(BC):
     def __init__(self, data):
         self.data = data
 
-    def apply_BCs(self, next_X, flux, dtrw):
+    def apply_BCs(self, next_X, flux, r, dtrw):
         if self.data[0].shape != next_X[:,0].shape and self.data[0].shape:
             raise Exception('Boundary conditions are incorrect shape, BC data is ' + str(self.data[0].shape) + ' Sol\'n is ' + str(next_X[:,0].shape))
 
@@ -44,7 +45,7 @@ class BC_Fedotov(BC):
         self.constant = constant
         self.right = right
 
-    def apply_BCs(self, next_X, flux, dtrw):
+    def apply_BCs(self, next_X, flux, r, dtrw):
         # Only left side has BC
         for i in range(next_X.shape[0]):
             #next_X[i,0] = scipy.optimize.newton(self.fedotov_func, next_X[i, 1], fprime=self.fedotov_func_prime, args=(next_X[i,1], self.alpha, self.constant))
@@ -66,7 +67,7 @@ class BC_Fedotov_balance(BC):
     def __init__(self):
         pass
 
-    def apply_BCs(self, next_X, flux, dtrw):
+    def apply_BCs(self, next_X, flux, r, dtrw):
         # Only left side has BC
         if dtrw.has_spatial_reactions:
             next_X[:,0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
@@ -80,21 +81,21 @@ class BC_periodic(BC):
     def __init__(self):
         pass 
 
-    def apply_BCs(self, next_X, flux, dtrw):
+    def apply_BCs(self, next_X, flux, r, dtrw):
         # Apply the boundary conditions
-        next_X[:,-1] += dtrw.lam[:,0,0] * flux[:,0]
-        next_X[:,0] += dtrw.lam[:,-1,1] * flux[:,-1]
+        next_X[:,-1] += dtrw.lam[:,0,0] * r * flux[:,0]
+        next_X[:,0] += dtrw.lam[:,-1,1] * r * flux[:,-1]
 
         if next_X.shape[0] > 1:
-            next_X[-1,:] += dtrw.lam[0,:,2] * flux[0,:]
-            next_X[0,:] += dtrw.lam[-1,:,3] * flux[-1,:]
+            next_X[-1,:] += dtrw.lam[0,:,2] * r * flux[0,:]
+            next_X[0,:] += dtrw.lam[-1,:,3] * r * flux[-1,:]
 
 class BC_zero_flux(BC):
     
     def __init__(self):
         pass 
 
-    def apply_BCs(self, next_X, flux, dtrw):
+    def apply_BCs(self, next_X, flux, r, dtrw):
         # Apply the boundary conditions
         #next_X[:,-1] = next_X[:,-2]
         #next_X[:,0] = next_X[:,1]
@@ -146,9 +147,12 @@ class DTRW(object):
             self.history_length = N
         else:
             self.history_length = history_length
+       
+        if isinstance(r, (int, float)): 
+            self.r = [r for i in range(len(self.Xs))]
+        elif len(r)==len(self.Xs):
+            self.r = r
         
-        self.r = r
-
         self.boundary_condition = boundary_condition
         self.has_spatial_reactions = False
 
@@ -346,29 +350,30 @@ class DTRW(object):
             theta = self.thetas[i]
             omega = self.omegas[i]
             nu = self.nus[i]
-        
+            r = self.r[i]
+
             if self.has_spatial_reactions:
                 # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
                 flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - self.r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
+                next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
             else:
                 flux = (X[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - self.r * flux - omega[self.n-1] * X[:,:,self.n-1] + nu[self.n-1]
+                next_X = X[:,:,self.n-1] - r * flux - omega[self.n-1] * X[:,:,self.n-1] + nu[self.n-1]
             
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
-            next_X[:,:-1] += self.r * (self.lam[:,:,0] * flux)[:,1:]
+            next_X[:,:-1] += r * (self.lam[:,:,0] * flux)[:,1:]
             # then all the right jump 
-            next_X[:,1:] += self.r * (self.lam[:,:,1] * flux)[:,:-1]
+            next_X[:,1:] += r * (self.lam[:,:,1] * flux)[:,:-1]
             
             if X.shape[0] > 1:
                 # The up jump
-                next_X[:-1,:] += self.r * (self.lam[:,:,2] * flux)[1:,:]
+                next_X[:-1,:] += r * (self.lam[:,:,2] * flux)[1:,:]
                 # The down jump
-                next_X[1:,:] += self.r * (self.lam[:,:,3] * flux)[:-1,:]
+                next_X[1:,:] += r * (self.lam[:,:,3] * flux)[:-1,:]
             
             # Apply the boundary conditions
-            self.boundary_condition.apply_BCs(next_X, flux, self)
+            self.boundary_condition.apply_BCs(next_X, flux, r, self)
 
             # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
             self.Xs[i][:,:,self.n] = next_X
@@ -399,7 +404,7 @@ class DTRW_diffusive(DTRW):
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
-        self.psi = np.array([self.r * pow(1. - self.omega, i-1) for i in range(self.history_length+1)])
+        self.psi = np.array([self.omega * pow(1. - self.omega, i-1) for i in range(self.history_length+1)])
         self.psi[0] = 0.
 
     def calc_Phi(self):
@@ -416,12 +421,12 @@ class DTRW_diffusive(DTRW):
 class DTRW_subdiffusive(DTRW):
 
     def __init__(self, X_inits, N, alpha, r = 1.0, history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
-        
         self.alpha = alpha
         super(DTRW_subdiffusive, self).__init__(X_inits, N, r, history_length, boltz_beta, potential, boundary_condition)
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
+        
         self.psi = np.zeros(self.history_length+1)
         self.psi[0] = 0.
         
