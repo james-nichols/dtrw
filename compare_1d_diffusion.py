@@ -51,9 +51,10 @@ plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
 line2, = plt.plot([],[],'g-')
 line3, = plt.plot([],[],'bx')
-plt.legend([line1, line2, line3], ["Normal diffusion", "Sub-diffusion, alpha=3/4", "analytic diffusion"])
+line4, = plt.plot([],[],'kx')
+plt.legend([line1, line2, line3, line4], ["Analytic diffusion", "Analytic subdiffusion, alpha=3/4", "DTRW diffusion", "DTRW Sub-diffusion, alpha=3/4"])
 
-def update(i, line1, line2, line3):
+def update(i, line1, line2, line3, line4):
     line1.set_data(xs,dtrw.Xs[0][:,:,i])
     line2.set_data(xs,dtrw_sub.Xs[0][:,:,i])
     if i == 0:
@@ -61,11 +62,12 @@ def update(i, line1, line2, line3):
     else:
         analytic_soln = (1./math.sqrt(4. * math.pi * float(i) * dT * D_alpha)) * np.exp( - (xs - 2.5) * (xs - 2.5) / (4. * D_alpha * float(i) * dT)) * dX
     line3.set_data(xs, analytic_soln)
-    return line1, line2, line3
+    line4.set_data(xs,dtrw_sub.Xs[0][:,:,i])
+    return line1, line2, line3, line4
 
 # call the animator. blit=True means only re-draw the parts that have changed.
 anim = animation.FuncAnimation(fig, update, 
-        frames=N, fargs=(line1, line2, line3), interval=10)
+        frames=N, fargs=(line1, line2, line3, line4), interval=10)
 
 import inspect, os, subprocess
 exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
