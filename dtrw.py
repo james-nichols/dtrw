@@ -69,12 +69,8 @@ class BC_Fedotov_balance(BC):
 
     def apply_BCs(self, next_X, flux, r, dtrw):
         # Only left side has BC
-        if dtrw.has_spatial_reactions:
-            next_X[:,0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
-            next_X[:,0] += dtrw.lam[:,0,0] * flux[:,0] 
-        else:
-            next_X[:,0] += (dtrw.omegas[0][dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
-            next_X[:,0] += dtrw.lam[:,0,0] * flux[:,0] 
+        next_X[:,0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+        next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0] 
 
 class BC_periodic(BC):
     
@@ -154,7 +150,6 @@ class DTRW(object):
             self.r = r
         
         self.boundary_condition = boundary_condition
-        self.has_spatial_reactions = False
 
         # This is the time-step counter
         self.n = 0
@@ -259,23 +254,23 @@ class DTRW(object):
     def calc_omega(self):
         """ Likelihood of surviving between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros(self.N) for i in range(len(self.Xs))]
+            self.omegas = [np.zeros(X.shape) for X in self.Xs]
 
     def calc_theta(self):
-        """Likelihood of surviving between 0 and n"""
+        """ Probability of surviving between 0 and n"""
         if self.thetas == None:
-            self.thetas = [np.zeros(self.N) for i in range(len(self.Xs))]
+            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
-            for i in range(len(self.Xs)):
-                # Note that this only works for constant theta at the moment
-                for j in range(self.N):
-                    self.thetas[i][j] = (1.0 - self.omegas[i][:j]).prod()
-    
+        for i in range(len(self.Xs)):
+            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
+            # Above is wrong! Below is right!!!! remember you want theta between m and n, not 0 and m!!!!
+            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
+
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros(self.N) for i in range(len(self.Xs))]
-    
+            self.nus = [np.zeros(X.shape) for X in self.Xs]
+
     def time_step_with_Q(self):
         """Take a time step forward using arrival densities. NOTE in the diffusive case 
         it is necessary to use a full history to get this one right"""
@@ -293,11 +288,9 @@ class DTRW(object):
             lookback = min(self.n, self.history_length)
             
             # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
-            if self.has_spatial_reactions:
-                # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
-                flux = (Q[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
-            else:
-                flux = (Q[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
+
+            # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
+            flux = (Q[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
 
             # Now apply lambda jump probabilities
             next_Q = np.zeros(self.shape)
@@ -324,11 +317,9 @@ class DTRW(object):
             lookback = min(self.n+1, self.history_length)
             
             # Matrix methods to calc X as in eq. (11) in the J Comp Phys paper
-            if self.has_spatial_reactions:
-                # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
-                next_X = (Q[:, :, self.n+1-lookback:self.n+1] * theta[:,:,self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1]).sum(2) + nu[:,:,self.n-1]
-            else:
-                next_X = (Q[:, :, self.n+1-lookback:self.n+1] * theta[self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1]).sum(2) + nu[self.n-1]
+  
+            # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
+            next_X = (Q[:, :, self.n+1-lookback:self.n+1] * theta[:,:,self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1]).sum(2) + nu[:,:,self.n-1]
 
             self.Xs[i][:,:,self.n] = next_X
        
@@ -352,13 +343,9 @@ class DTRW(object):
             nu = self.nus[i]
             r = self.r[i]
 
-            if self.has_spatial_reactions:
-                # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
-                flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
-            else:
-                flux = (X[:, :, self.n-lookback:self.n] * theta[self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-                next_X = X[:,:,self.n-1] - r * flux - omega[self.n-1] * X[:,:,self.n-1] + nu[self.n-1]
+            # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
+            flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
+            next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
             
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
@@ -437,7 +424,6 @@ class DTRW_subdiffusive(DTRW):
         # Highly dubious: Normalising psi so that we conservation of particles
         # self.psi[-1] = 1.0 - self.psi[:-1].sum()
         
-    
     def calc_Phi(self):
         """PDF of not jumping up to time n"""
         self.Phi = np.ones(self.history_length+1)
@@ -466,8 +452,6 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
 
         super(DTRW_diffusive_with_transition, self).__init__(X_inits, N, omega, r, history_length, boltz_beta, potential, boundary_condition)
    
-        self.has_spatial_reactions = True
-
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
@@ -485,17 +469,6 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
         
         # Infected CD4+ cells, layer 2
         # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
-
-
-    def calc_theta(self):
-        """ Probability of surviving between 0 and n"""
-        if self.thetas == None:
-            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-
-        for i in range(len(self.Xs)):
-            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
-            # Above is wrong! Below is right!!!! remember you want theta between m and n, not 0 and m!!!!
-            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
@@ -521,8 +494,6 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
 
         super(DTRW_subdiffusive_with_transition, self).__init__(X_inits, N, alpha, r, history_length, boltz_beta, potential, boundary_condition)
    
-        self.has_spatial_reactions = True
-
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
@@ -540,17 +511,6 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
         
         # Infected CD4+ cells, layer 2
         # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
-
-
-    def calc_theta(self):
-        """ Probability of surviving between 0 and n"""
-        if self.thetas == None:
-            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-
-        for i in range(len(self.Xs)):
-            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
-            # Above is wrong! Below is right!!!! remember you want theta between m and n, not 0 and m!!!!
-            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
@@ -572,7 +532,6 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
         
         self.k = k
         super(DTRW_subdiffusive_fedotov_death, self).__init__(X_inits, N, alpha, r, history_length, boltz_beta, potential, boundary_condition)
-        self.has_spatial_reactions = True
 
     def calc_omega(self):
         """ Probability of death between n and n+1"""
@@ -580,17 +539,6 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
             self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
         
         self.omegas[0][:,:,self.n] = self.k * self.Xs[0][:,:,self.n] #1. - np.exp(-self.k * self.Xs[0][:,:,self.n] * self.Xs[0][:,:,self.n])
-
-    def calc_theta(self):
-        """ Probability of surviving between 0 and n"""
-        if self.thetas == None:
-            self.thetas = [np.ones((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-
-        for i in range(len(self.Xs)):
-            # THIS IS WRONG! 
-            #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
-            # This is right!!!! remember you want theta between m and n, not 0 and m!!!!
-            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
 
     def calc_nu(self):
         """Likelihood of birth happening at i, just zero as there's no births """
