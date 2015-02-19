@@ -57,11 +57,11 @@ fed_bal_bc = BC_Fedotov_balance()
 
 X_init = analytic_soln
 
-dtrw = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bc)
-#dtrw = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, 1.-exp(k*dT), history_length, boundary_condition=fed_bc)
+dtrw = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length=history_length, boundary_condition=fed_bc)
+#dtrw = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, 1.-exp(k*dT), history_length=history_length, boundary_condition=fed_bc)
 dtrw.solve_all_steps()
 
-dtrw_dir = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=dir_bc)
+dtrw_dir = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length=history_length, boundary_condition=dir_bc)
 dtrw_dir.solve_all_steps()
 
 dtrw_bal = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bal_bc)
@@ -69,8 +69,8 @@ dtrw_bal.solve_all_steps()
 
 print "Solutions computed, now creating animation..."
 
-lo = n_points - 10 
-hi = n_points-1 
+lo = 0 
+hi = 50 #n_points-1 
 
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,L)
