@@ -111,9 +111,9 @@ ts = np.array(np.arange(N) * dT)
 ts_1 = np.array(np.arange(N_1) * dT_1)
 ts_2 = np.array(np.arange(N_2) * dT_2)
 
-beta = 0. #0.2
+beta = 0.2
 mu = 0.0
-gamma = 0. #0.1
+gamma = 0.1
 
 # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
 r = dT / (dX * dX / (2.0 * D_alpha))
