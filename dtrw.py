@@ -11,10 +11,29 @@ from itertools import *
 import pdb
 
 # TODO LIST
-# o Inherit theta builder from base class
-# o Potentially remove the has_spatial_reactions property and unify the approach
 # o Make the SIR / compartment model work for testing
 # o Potentially put r back in to lambda and do it that way, remove from apply_BC argument
+
+def calc_sibuya_kernel(self, N, alpha):
+    """ The Sibuya Kernel as defined in J Phys Comp """
+    K = np.zeros(N+1)
+    
+    K[0] = 0.0
+    K[1] = alpha 
+    K[2] = alpha * 0.5 * (self.alpha - 1.0)
+    for i in range(3,N+1):
+        K = (float(i) + alpha - 2.0) * K[i-1] / float(i)
+
+    return K
+
+def calc_exp_kernel(self, N, r):
+    """ Exponential waiting times leads to delta function kernel """
+    K = np.zeros(N+1)
+     
+    # In the exponential case it's quite simply...
+    K[1] = r
+
+    return K
 
 class BC(object):
     def __init__(self):
@@ -93,18 +112,48 @@ class BC_zero_flux(BC):
 
     def apply_BCs(self, next_X, flux, r, dtrw):
         # Apply the boundary conditions
-        #next_X[:,-1] = next_X[:,-2]
-        #next_X[:,0] = next_X[:,1]
+        next_X[:,-1] = next_X[:,-3]
+        next_X[:,0] = next_X[:,2]
         
         # New regime: simply reflect flux back where it came from!
-        next_X[:,0] += dtrw.r * dtrw.lam[:,0,0] * flux[:,0]
-        next_X[:,-1] += dtrw.r * dtrw.lam[:,-1,1] * flux[:,-1]
+        #next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0]
+        #next_X[:,-1] += r * dtrw.lam[:,-1,1] * flux[:,-1]
 
         if next_X.shape[0] > 1:
-            #next_X[-1,:] = next_X[-2,:]
-            #next_X[0,:] = next_X[1,:]
-            next_X[0,:] += dtrw.r * dtrw.lam[0,:,2] * flux[0,:]
-            next_X[-1,:] += dtrw.r * dtrw.lam[-1,:,3] * flux[-1,:]
+            next_X[-1,:] = next_X[-3,:]
+            next_X[0,:] = next_X[2,:]
+            #next_X[0,:] += r * dtrw.lam[0,:,2] * flux[0,:]
+            #next_X[-1,:] += r * dtrw.lam[-1,:,3] * flux[-1,:]
+
+class BC_zero_flux_centred(BC):
+    
+    def __init__(self):
+        pass 
+
+    def apply_BCs(self, next_X, flux, r, dtrw):
+        # Apply the boundary conditions
+        
+        # New regime: simply reflect flux back where it came from!
+        next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0]
+        next_X[:,-1] += r * dtrw.lam[:,-1,1] * flux[:,-1]
+
+        if next_X.shape[0] > 1:
+            next_X[0,:] += r * dtrw.lam[0,:,2] * flux[0,:]
+            next_X[-1,:] += r * dtrw.lam[-1,:,3] * flux[-1,:]
+
+class BC_zero_flux_centred(BC):
+    
+    def __init__(self):
+        pass 
+
+    def apply_BCs(self, next_X, flux, r, dtrw):
+        # Apply the boundary conditions
+        next_X[:,-1] = next_X[:,-3]
+        next_X[:,0] = next_X[:,2]
+        
+        if next_X.shape[0] > 1:
+            next_X[-1,:] = next_X[-3,:]
+            next_X[0,:] = next_X[2,:]
 
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
@@ -112,6 +161,15 @@ class DTRW(object):
 
     def __init__(self, X_inits, N, r = 1., history_length = 2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         """X is the initial concentration field, N is the number of time steps to simulate"""
+
+        if isinstance(boundary_condition, BC_zero_flux) or isinstance(boundary_condition, BC_zero_flux_centred): 
+            # Make ghost points...
+            for i in range(len(X_inits)):
+                if len(X_inits[i].shape) > 1:
+                    X_inits[i] = np.pad(X_inits[i], [[1,1],[1,1]], 'edge')
+                else:
+                    X_inits[i] = np.pad(X_inits[i], [1,1], 'edge')
+
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
         self.Xs = []
@@ -346,7 +404,11 @@ class DTRW(object):
             # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
             flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
             next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
-            
+           
+            if (flux < 0.).sum() == True:
+                print "Step", i, "has -ve flux"
+                print flux
+
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
             next_X[:,:-1] += r * (self.lam[:,:,0] * flux)[:,1:]
@@ -361,7 +423,7 @@ class DTRW(object):
             
             # Apply the boundary conditions
             self.boundary_condition.apply_BCs(next_X, flux, r, self)
-
+            
             # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
             self.Xs[i][:,:,self.n] = next_X
    
@@ -376,10 +438,19 @@ class DTRW(object):
     
     def solve_all_steps(self):
         """Solve the time steps using the memory kernel, available only if we know how to calculate K"""
+        
         for i in range(self.N-1):
             #if i % 100 == 0:
             #    print "Solved to step", i
             self.time_step()
+        
+        if isinstance(self.boundary_condition, BC_zero_flux) or isinstance(self.boundary_condition, BC_zero_flux_centred): 
+            # Get rid of ghost points...
+            for i in range(len(self.Xs)):
+                if self.Xs[i].shape[0] > 1:
+                    self.Xs[i] = self.Xs[i][1:-1,1:-1,:]
+                else:
+                    self.Xs[i] = self.Xs[i][:,1:-1,:]
 
 class DTRW_diffusive(DTRW):
 
@@ -441,6 +512,21 @@ class DTRW_subdiffusive(DTRW):
         for i in range(3,self.history_length+1):
             self.K[i] = (float(i) + self.alpha - 2.0) * self.K[i-1] / float(i)
 
+class DTRW_subdiffusive_with_death(DTRW_subdiffusive):
+    
+    def __init__(self, X_inits, N, alpha, k, r = 1., history_length = 0, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+        
+        self.k = k
+
+        super(DTRW_subdiffusive_with_death, self).__init__(X_inits, N, alpha, r, history_length, boltz_beta, potential, boundary_condition)
+   
+    def calc_omega(self):
+        """ Probability of death between n and n+1"""
+        if self.omegas == None:
+            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+
+        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k) 
+        
 class DTRW_diffusive_with_transition(DTRW_diffusive):
     
     def __init__(self, X_inits, N, omega, k_1, k_2, clearance_rate, infection_rate, r = 1., history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
@@ -545,7 +631,38 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
         if self.nus == None:
             self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
-class DTRW_ODE(object):
+
+"""
+class reaction(object):
+    
+    def __init__(self, history_length, from, to):
+
+        self.history_length = history_length
+        self.from_compartment = from
+        self.to_compartment = to
+
+    def calc_flux(self, Xs, i):
+        return 0.
+
+    def calc_survival(self, Xs, i):
+        return 1.
+
+class anomalous_reaction(reaction):
+
+    def __init__(self, alpha, history_length, r, from, to):
+        self.K = calc_sibuya_kernel(history_length, alpha)
+        self.r = r
+
+        super(anomalous_reaction, self).__init__(history_length)
+
+    def calc_flux(self, Xs, i):
+        flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
+        next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
+"""
+
+
+
+class DTRW_compartment(object):
     """ A DTRW class for non spatial, compartment only models, so reactions are easily given either an anomalous  """
 
     def __init__(self, X_inits, N):
@@ -571,28 +688,25 @@ class DTRW_ODE(object):
         self.n += 1
 
         next_X = self.Xs[:,-1] + self.in_flux() - self.out_flux()
-         
         self.Xs = np.column_stack([self.Xs, next_X])
    
 
-    def calc_sibuya_kernel(self, N, alpha):
-        """Once off call to calculate the memory kernel and store it"""
-        result = np.zeros(N+1)
-        
-        result[0] = 0.0
-        result[1] = alpha 
-        result[2] = alpha * 0.5 * (self.alpha - 1.0)
-        for i in range(3,N+1):
-            result = (float(i) + alpha - 2.0) * result[i-1] / float(i)
- 
-    def calc_diff_kernel(self, N, r):
-        """Once off call to calculate the memory kernel and store it"""
-        result = np.zeros(N+1)
-         
-        # In the exponential case it's quite simply...
-        result[1] = r
+class DTRW_SIR(DTRW_compartment):
 
-class DTRW_two_compartment_test(DTRW_ODE):
+    def __init__(self, X_inits, N, dt, alpha, delta):
+
+        self.transition_K = calc_sibuya_kernel(N)
+        self.death_K = self.calc_diff_kernel(2, delta)
+
+    def out_flux(self):
+        
+        out_f = np.zeros(len(self.Xs[:,-1]))
+        
+        out_f[0] = self.Xs[0, :] * self.transition_K[:self.n][::-1]
+        out_f[1] = self.Xs[1, :-2] 
+
+
+class DTRW_two_compartment_test(DTRW_compartment):
 
     def __init__(self, X_inits, N, dt, alpha, delta):
 
