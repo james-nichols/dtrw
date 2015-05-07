@@ -631,80 +631,96 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
         if self.nus == None:
             self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
 
-
-"""
-class reaction(object):
-    
-    def __init__(self, history_length, from, to):
-
-        self.history_length = history_length
-        self.from_compartment = from
-        self.to_compartment = to
-
-    def calc_flux(self, Xs, i):
-        return 0.
-
-    def calc_survival(self, Xs, i):
-        return 1.
-
-class anomalous_reaction(reaction):
-
-    def __init__(self, alpha, history_length, r, from, to):
-        self.K = calc_sibuya_kernel(history_length, alpha)
-        self.r = r
-
-        super(anomalous_reaction, self).__init__(history_length)
-
-    def calc_flux(self, Xs, i):
-        flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-        next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
-"""
-
-
+#####################
+# COMPARTMENT MODELS
+#####################
 
 class DTRW_compartment(object):
     """ A DTRW class for non spatial, compartment only models, so reactions are easily given either an anomalous  """
 
-    def __init__(self, X_inits, N):
+    def __init__(self, X_inits, T, dT):
         
-        self.N = N
-        self.n = 0
-        self.Xs = np.vstack(X_inits)
-        # We define no kernels and no fluxes.
+        self.N = np.ceiling(float(T) / dT)
+        self.T = T
+        self.dT = dT
+        self.n = 0 # Time point counter
 
-    def out_flux(self, i):
-        """ defines the outward flux of a compartment """
-        return np.zeros(len(self.Xs[-1]))
+        self.n_species = X_inits.size
+        
+        self.Xs = np.zeros([self.n_species, self.N])
+        # Need the survival probs for each compartment for the anomalous removals.
+        self.survival_probs = np.ones([self.n_species, self.N])
 
-    def in_flux(self, i):
-        """ defines the inward flux of a compartment """
-        return np.zeros(len(self.Xs[-1]))
+    def creations(self):
+        """ Defines all creation processes for each compartment """
+        return np.zeros(self.n_species)
+
+    def removal_rates(self):
+        return np.zeros(self.n_species)
+
+    def removal_markovian(self, n):
+        """ Defines all Markovian removal processes """
+        return (1. - np.exp(self.removal_rates(n))) * self.Xs[:,n]
     
+    def removal_anomalous(self, n):
+        """ Defines all outward anomalous removal processes """
+        return np.zeros(self.n_species)
+
+    def calc_anom_flux(self, K, X, survival_prob):
+        """ Handy function to calculate outward flux due to a kernel 
+            Theta is the survival prob. of all other compartments """
+        return (X[:self.n] * survival_prob[:self.n] * K[1:self.n+1][::-1]).sum()
+
     def time_step(self):
         """ Step forwards directly with X using the memory kernels K, this
             method is only available in cases where we can calculate K analytically!"""
  
-        # First we increment the time counter!
+        # First we increment thetime counter
         self.n += 1
-
-        next_X = self.Xs[:,-1] + self.in_flux() - self.out_flux()
-        self.Xs = np.column_stack([self.Xs, next_X])
+        
+        # Update survival probabilities
+        self.survival_probs[:,:self.n] = self.survival_probs[:,:self.n] * (1. - self.removal_markovian())
+        # Update popultions
+        self.Xs[:,n] = self.Xs[:,n-1] + self.creations() - self.removal_markovian() - self.removal_anomalous()
    
-
+    def solve_all_steps(self):
+        """Solve the time steps using the memory kernel, available only if we know how to calculate K"""
+        
+        for i in range(self.N-1):
+            self.time_step()
+        
 class DTRW_SIR(DTRW_compartment):
 
-    def __init__(self, X_inits, N, dt, alpha, delta):
+    def __init__(self, X_inits, N, dt, lam, omega, gamma, mu, alpha):
 
-        self.transition_K = calc_sibuya_kernel(N)
-        self.death_K = self.calc_diff_kernel(2, delta)
-
-    def out_flux(self):
+        super(DTRW_SIR, self).__init__(X_inits, N)
         
-        out_f = np.zeros(len(self.Xs[:,-1]))
-        
-        out_f[0] = self.Xs[0, :] * self.transition_K[:self.n][::-1]
-        out_f[1] = self.Xs[1, :-2] 
+        self.lam = lam
+        self.omega = omega
+        self.gamma = gamma
+        self.mu = mu
+        self.alpha = alpha
 
+        self.recovery_K = calc_sibuya_kernel(self.N+1, self.alpha)
+
+    def creations(self):
+        return np.array([self.lam, \
+                         s
+
+    def removal_markovian(self):
+        return np.array([self.omega * self.Xs[1, self.n] + self.gamma, \
+                         self.gamma, \
+                         self.gamma])
+
+    def removal_anomalous(self):
+        flux = np.zeros(self.n_species)
+        flux[1] = self.calc_anom_flux(self.Xs[1,:], self.recovery_K, self.survival_probs[1,:])
+        return flux
+
+class DTRW_FKBM(DTRW_compartment):
+
+    def __init__(self, lots_of_parameters):
+        pass
 
 class DTRW_two_compartment_test(DTRW_compartment):
 
