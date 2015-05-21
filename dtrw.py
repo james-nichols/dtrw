@@ -707,12 +707,45 @@ class DTRW_SIR(DTRW_compartment):
 
     def __init__(self, X_inits, T, dT, lam, omega, gamma, mu, alpha):
 
+        if len(X_inits) != 3:
+            # Error!
+            print "Need three initial points"
+            raise SystemExit 
+
         super(DTRW_SIR, self).__init__(X_inits, T, dT)
         
         self.lam = lam
         self.omega = omega
         self.gamma = gamma
         self.mu = mu
+        self.alpha = alpha
+
+        self.Ks[1] = calc_sibuya_kernel(self.N+1, self.alpha)
+        self.anom_rates[1] = self.mu
+
+    def creation_flux(self, n):
+        return np.array([(1. - np.exp(-self.dT * self.lam)), \
+                         (1. - np.exp(-self.dT * self.omega * self.Xs[1,n])) * self.Xs[0,n], \
+                         self.removal_flux_anomalous(n)[1] ])
+
+
+    def removal_rate(self, n):
+        return np.array([self.omega * self.Xs[1, n] + self.gamma, \
+                         self.gamma, \
+                         self.gamma])
+
+     
+class DTRW_PBPK(DTRW_compartment):
+
+    def __init__(self, X_inits, T, dT, lam, omega, gamma, mu, alpha):
+        
+        if len(X_inits) != 8:
+            # Error!
+            print "Need three initial points"
+            raise SystemExit
+
+        super(DTRW_PBPK, self).__init__(X_inits, T, dT)
+          
         self.alpha = alpha
 
         self.Ks[1] = calc_sibuya_kernel(self.N+1, self.alpha)
