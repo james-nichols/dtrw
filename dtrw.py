@@ -652,9 +652,13 @@ class DTRW_compartment(object):
 
         self.Xs = np.zeros([self.n_species, self.N])
         self.Xs[:,0] = X_inits
-
+ 
         # Need the survival probs for each compartment for the anomalous removals.
         self.survival_probs = np.ones([self.n_species, self.N])
+
+    def cration_rate(self, n):
+        """ Define a simple creation rate """
+        return np.zeros(self.n_species)
 
     def creation_flux(self, n):
         """ Defines all creation processes for each compartment """
@@ -737,15 +741,21 @@ class DTRW_SIR(DTRW_compartment):
      
 class DTRW_PBPK(DTRW_compartment):
 
-    def __init__(self, X_inits, T, dT, lam, omega, gamma, mu, alpha):
+    def __init__(self, X_inits, T, dT, V, Q, R, mu, Vmax, Km, alpha):
         
-        if len(X_inits) != 8:
+        if len(X_inits) != 6:
             # Error!
-            print "Need three initial points"
+            print "Need six initial points"
             raise SystemExit
 
         super(DTRW_PBPK, self).__init__(X_inits, T, dT)
           
+        self.Vs = V
+        self.Qs = Q
+        self.Rs = R
+        self.mu = mu
+        self.Vmax = Vmax
+        self.Km = Km
         self.alpha = alpha
 
         self.Ks[1] = calc_sibuya_kernel(self.N+1, self.alpha)
@@ -758,6 +768,10 @@ class DTRW_PBPK(DTRW_compartment):
 
 
     def removal_rate(self, n):
-        return np.array([self.omega * self.Xs[1, n] + self.gamma, \
-                         self.gamma, \
-                         self.gamma])
+        return np.array([self.Qs[0] / (self.Vs[0] * self.Rs[0]),
+                         self.Qs[1] / (self.Vs[1] * self.Rs[1]),
+                         self.Qs[2] / (self.Vs[2] * self.Rs[2]),
+                         self.Qs[3] / (self.Vs[3] * self.Rs[3]) + self.mu,
+                         self.Qs[4] / (self.Vs[4] * self.Rs[4]) + self.Vmax / (self.Km + self.Xs[4,n]),
+                         self.Qs.sum() / self.Vs[5])
+                        
