@@ -732,7 +732,6 @@ class DTRW_SIR(DTRW_compartment):
                          (1. - np.exp(-self.dT * self.omega * self.Xs[1,n])) * self.Xs[0,n], \
                          self.removal_flux_anomalous(n)[1] ])
 
-
     def removal_rate(self, n):
         return np.array([self.omega * self.Xs[1, n] + self.gamma, \
                          self.gamma, \
@@ -741,7 +740,7 @@ class DTRW_SIR(DTRW_compartment):
      
 class DTRW_PBPK(DTRW_compartment):
 
-    def __init__(self, X_inits, T, dT, V, Q, R, mu, Vmax, Km, alpha):
+    def __init__(self, X_inits, T, dT, V, Q, R, mu, Vmax, Km, g, g_T):
         
         if len(X_inits) != 6:
             # Error!
@@ -749,29 +748,89 @@ class DTRW_PBPK(DTRW_compartment):
             raise SystemExit
 
         super(DTRW_PBPK, self).__init__(X_inits, T, dT)
-          
+         
         self.Vs = V
         self.Qs = Q
         self.Rs = R
         self.mu = mu
         self.Vmax = Vmax
         self.Km = Km
-        self.alpha = alpha
-
-        self.Ks[1] = calc_sibuya_kernel(self.N+1, self.alpha)
-        self.anom_rates[1] = self.mu
+        self.g = g
+        self.g_T = g_T
 
     def creation_flux(self, n):
-        return np.array([(1. - np.exp(-self.dT * self.lam)), \
-                         (1. - np.exp(-self.dT * self.omega * self.Xs[1,n])) * self.Xs[0,n], \
-                         self.removal_flux_anomalous(n)[1] ])
+        g_N = 0.
+        if (n * self.dT < self.g_T):
+            g_N = self.g * self.dT
+        return np.array([(1. - np.exp(-self.dT * self.Qs[0] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[1] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[2] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[3] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[4] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[0] / (self.Vs[0] * self.Rs[0]))) * self.Xs[0,n] + \
+                         (1. - np.exp(-self.dT * self.Qs[1] / (self.Vs[1] * self.Rs[1]))) * self.Xs[1,n] + \
+                         (1. - np.exp(-self.dT * self.Qs[2] / (self.Vs[2] * self.Rs[2]))) * self.Xs[2,n] + \
+                         (1. - np.exp(-self.dT * self.Qs[3] / (self.Vs[3] * self.Rs[3]))) * self.Xs[3,n] + \
+                         (1. - np.exp(-self.dT * self.Qs[4] / (self.Vs[4] * self.Rs[4]))) * self.Xs[4,n] + \
+                         g_N ])
 
 
     def removal_rate(self, n):
-        return np.array([self.Qs[0] / (self.Vs[0] * self.Rs[0]),
-                         self.Qs[1] / (self.Vs[1] * self.Rs[1]),
-                         self.Qs[2] / (self.Vs[2] * self.Rs[2]),
-                         self.Qs[3] / (self.Vs[3] * self.Rs[3]) + self.mu,
-                         self.Qs[4] / (self.Vs[4] * self.Rs[4]) + self.Vmax / (self.Km + self.Xs[4,n]),
-                         self.Qs.sum() / self.Vs[5])
-                        
+        return np.array([self.Qs[0] / (self.Vs[0] * self.Rs[0]), \
+                         self.Qs[1] / (self.Vs[1] * self.Rs[1]), \
+                         self.Qs[2] / (self.Vs[2] * self.Rs[2]), \
+                         self.Qs[3] / (self.Vs[3] * self.Rs[3]) + self.mu / self.Vs[3], \
+                         self.Qs[4] / (self.Vs[4] * self.Rs[4]) + self.Vmax / (self.Vs[4] * self.Km + self.Xs[4,n]), \
+                         sum(self.Qs) / self.Vs[5] ])
+     
+class DTRW_PBPK_anom(DTRW_compartment):
+
+    def __init__(self, X_inits, T, dT, V, Q, R, mu, Vmax, Km, g, g_T, alpha):
+        
+        if len(X_inits) != 6:
+            # Error!
+            print "Need six initial points"
+            raise SystemExit
+
+        super(DTRW_PBPK_anom, self).__init__(X_inits, T, dT)
+         
+        self.Vs = V
+        self.Qs = Q
+        self.Rs = R
+        self.mu = mu
+        self.Vmax = Vmax
+        self.Km = Km
+        self.g = g
+        self.g_T = g_T
+
+        self.alpha = alpha
+        self.Ks[2] = calc_sibuya_kernel(self.N+1, self.alpha)
+        self.Ks[5] = calc_sibuya_kernel(self.N+1, self.alpha)
+        self.anom_rates[2] = self.Qs[2] / (self.Vs[2] * self.Rs[2])
+        self.anom_rates[5] = self.Qs[2] / (self.Vs[5])
+
+    def creation_flux(self, n):
+        g_N = 0.
+        if (n * self.dT < self.g_T):
+            g_N = self.g * self.dT
+        return np.array([(1. - np.exp(-self.dT * self.Qs[0] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[1] / self.Vs[5])) * self.Xs[5,n], \
+                         self.removal_flux_anomalous(n)[5], \
+                         (1. - np.exp(-self.dT * self.Qs[3] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[4] / self.Vs[5])) * self.Xs[5,n], \
+                         (1. - np.exp(-self.dT * self.Qs[0] / (self.Vs[0] * self.Rs[0]))) * self.Xs[0,n] + \
+                         (1. - np.exp(-self.dT * self.Qs[1] / (self.Vs[1] * self.Rs[1]))) * self.Xs[1,n] + \
+                         self.removal_flux_anomalous(n)[2] + \
+                         (1. - np.exp(-self.dT * self.Qs[3] / (self.Vs[3] * self.Rs[3]))) * self.Xs[3,n] + \
+                         (1. - np.exp(-self.dT * self.Qs[4] / (self.Vs[4] * self.Rs[4]))) * self.Xs[4,n] + \
+                         g_N ])
+
+
+    def removal_rate(self, n):
+        return np.array([self.Qs[0] / (self.Vs[0] * self.Rs[0]), \
+                         self.Qs[1] / (self.Vs[1] * self.Rs[1]), \
+                         0.0, \
+                         self.Qs[3] / (self.Vs[3] * self.Rs[3]) + self.mu / self.Vs[3], \
+                         self.Qs[4] / (self.Vs[4] * self.Rs[4]) + self.Vmax / (self.Vs[4] * self.Km + self.Xs[4,n]), \
+                         sum(self.Qs) / self.Vs[5] ])
+                    
