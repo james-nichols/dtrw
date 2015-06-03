@@ -36,7 +36,7 @@ dtrw_anom = DTRW_PBPK_anom(initial, T, dT, Vs, Qs, Rs, mu, V_max, K_m, g, g_T, a
 
 dtrw.solve_all_steps()
 dtrw_anom.solve_all_steps()
-
+pdb.set_trace()
 max_level = max([dtrw.Xs[0,:].max(), dtrw.Xs[1,:].max(), dtrw.Xs[2,:].max(), dtrw.Xs[3,:].max(), dtrw.Xs[4,:].max(), dtrw.Xs[5,:].max()])
 
 fig = plt.figure(figsize=(8,8))
@@ -52,12 +52,12 @@ L, = plt.plot(ts, dtrw.Xs[4,:])
 A, = plt.plot(ts, dtrw.Xs[5,:])
 plt.legend([P, R, F, K, L, A], ["Poorly perfused", "Richly perfused", "Fatty tissue", "Kidneys", "Liver", "Arterial blood"])
 
-Pa, = plt.plot(ts, dtrw_anom.Xs[0,:],':')
-Ra, = plt.plot(ts, dtrw_anom.Xs[1,:],':')
-Fa, = plt.plot(ts, dtrw_anom.Xs[2,:],':')
-Ka, = plt.plot(ts, dtrw_anom.Xs[3,:],':')
-La, = plt.plot(ts, dtrw_anom.Xs[4,:],':')
-Aa, = plt.plot(ts, dtrw_anom.Xs[5,:],':')
+Pa, = plt.plot(ts, dtrw_anom.Xs[0,:],'b:')
+Ra, = plt.plot(ts, dtrw_anom.Xs[1,:],'g:')
+Fa, = plt.plot(ts, dtrw_anom.Xs[2,:],'r:')
+Ka, = plt.plot(ts, dtrw_anom.Xs[3,:],'c:')
+La, = plt.plot(ts, dtrw_anom.Xs[4,:],'m:')
+Aa, = plt.plot(ts, dtrw_anom.Xs[5,:],'y:')
 
 plt.show()
 

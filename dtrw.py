@@ -155,6 +155,11 @@ class BC_zero_flux_centred(BC):
             next_X[-1,:] = next_X[-3,:]
             next_X[0,:] = next_X[2,:]
 
+###########################################
+# BASE DTRW CLASS
+# All DTRW methods derive from this class.
+##########################################
+
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
@@ -452,6 +457,11 @@ class DTRW(object):
                 else:
                     self.Xs[i] = self.Xs[i][:,1:-1,:]
 
+######################################################################
+# DERIVED CLASSES
+# All the following classes are specific instances of the spatial DTRW
+######################################################################
+
 class DTRW_diffusive(DTRW):
 
     def __init__(self, X_inits, N, omega, r = 1.0, history_length=2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
@@ -681,7 +691,7 @@ class DTRW_compartment(object):
         flux = np.zeros(self.n_species)
         for i in range(self.n_species):
             if self.Ks[i] != None:
-                flux[i] = self.dT * self.anom_rates[i] * (self.Xs[i,:n] * self.survival_probs[i,:n] * self.Ks[i][1:n+1][::-1]).sum()
+                flux[i] = (1. - np.exp(-self.dT * self.anom_rates[i])) * (self.Xs[i,:n+1] * self.survival_probs[i,:n+1] * self.Ks[i][1:n+2][::-1]).sum()
         return flux 
 
     def calc_anom_flux(self, K, X, survival_prob, n):
@@ -699,7 +709,7 @@ class DTRW_compartment(object):
         # Update survival probabilities
         self.survival_probs[:,:self.n] = self.survival_probs[:,:self.n] * np.vstack(1. - self.removal_prob_markovian(self.n-1))
         # Update popultions
-        self.Xs[:,self.n] = self.Xs[:,self.n-1] + self.creation_flux(self.n-1) - self.removal_flux_markovian(self.n-1) - self.removal_flux_anomalous(self.n)
+        self.Xs[:,self.n] = self.Xs[:,self.n-1] + self.creation_flux(self.n-1) - self.removal_flux_markovian(self.n-1) - self.removal_flux_anomalous(self.n-1)
 
     def solve_all_steps(self):
         """Solve the time steps using the memory kernel, available only if we know how to calculate K"""
@@ -832,5 +842,5 @@ class DTRW_PBPK_anom(DTRW_compartment):
                          0.0, \
                          self.Qs[3] / (self.Vs[3] * self.Rs[3]) + self.mu / self.Vs[3], \
                          self.Qs[4] / (self.Vs[4] * self.Rs[4]) + self.Vmax / (self.Vs[4] * self.Km + self.Xs[4,n]), \
-                         sum(self.Qs) / self.Vs[5] ])
+                         (sum(self.Qs) - self.Qs[2]) / self.Vs[5] ])
                     
