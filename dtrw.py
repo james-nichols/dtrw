@@ -158,13 +158,13 @@ class BC_zero_flux_centred(BC):
 ###########################################
 # BASE DTRW CLASS
 # All DTRW methods derive from this class.
-##########################################
+###########################################
 
 class DTRW(object):
     """ Base definition of a DTRW with arbitrary wait-times
         for reactions and jumps """
 
-    def __init__(self, X_inits, N, r = 1., history_length = 2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
+    def __init__(self, X_inits, T, dT, dX, D, r = 1., history_length = 2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         """X is the initial concentration field, N is the number of time steps to simulate"""
 
         if isinstance(boundary_condition, BC_zero_flux) or isinstance(boundary_condition, BC_zero_flux_centred): 
@@ -200,17 +200,30 @@ class DTRW(object):
 
         self.shape = self.Xs[0][:,:,0].shape
         self.size = self.Xs[0][:,:,0].size
-
-        self.N = N
+        
+        self.T = T
+        self.dT = dT
+        self.dX = dX
+        self.D = D
+        
+        # There are two cases for dT - either its a single dT or a full spec of step by step dTs (making our method "adaptive")
+        self.N = np.ciel(self.T / self.dT)
         if history_length == 0:
-            self.history_length = N
+            self.history_length = self.N
         else:
             self.history_length = history_length
-       
-        if isinstance(r, (int, float)): 
-            self.r = [r for i in range(len(self.Xs))]
-        elif len(r)==len(self.Xs):
-            self.r = r
+        
+        # We have a sequence of r as long as different dTs
+        self.r = np.zeros([len(self.Xs), len(self.dT)])
+        if isinstance(self.D, (int, float)):
+            for i in len(self.dT):
+                self.r[:, i] = [ 2. * D * pow(self.dT[i], alpha) / self.dX for j in range(len(self.Xs))]
+        elif len(self.D)==len(self.Xs):
+            for i in len(self.dT):
+                self.r[:, i] = [ 2. * D[j] * pow(self.dT[i], alpha) / self.dX for j in range(len(self.Xs))]
+        else:
+            # Error!
+            print "ERROR: inconsistent number of Ds with number of compartments"
         
         self.boundary_condition = boundary_condition
 
