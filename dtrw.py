@@ -656,7 +656,10 @@ class DTRW_compartment(object):
         self.n = 0 # Time point counter
 
         self.n_species = len(X_inits)
-       
+
+        #self.removal_rates = np.zeros([self.n_species, 1])
+        #self.creation_rates = np.zeros([self.n_species, 1])
+
         self.Ks = [None] * self.n_species
         self.anom_rates = np.zeros(self.n_species)
 
@@ -666,7 +669,7 @@ class DTRW_compartment(object):
         # Need the survival probs for each compartment for the anomalous removals.
         self.survival_probs = np.ones([self.n_species, self.N])
 
-    def cration_rate(self, n):
+    def creation_rate(self, n):
         """ Define a simple creation rate """
         return np.zeros(self.n_species)
 
@@ -674,17 +677,29 @@ class DTRW_compartment(object):
         """ Defines all creation processes for each compartment """
         return np.zeros(self.n_species)
 
-    def removal_rate(self, n):
+    def removal_rates(self, n):
         """ Defines the removal rate AT time point n """
-        return np.zeros(self.n_species)
+        return np.zeros([self.n_species, 1])
     
-    def removal_prob_markovian(self, n):
-        """ Simple markovian probability calc - like an exponential interpolation """
-        return (1. - np.exp(-self.dT * self.removal_rate(n)))
-
     def removal_flux_markovian(self, n):
+        """ Simple markovian probability calc - like an exponential interpolation """
+        prob = 1. - np.exp(-self.dT * self.removal_rates(n))
+        survive = np.exp(-self.dT * self.removal_rates(n))
+
+        for i in range(survive.shape[1]):
+            prob[:, i] *= survive[:,:i].prod(1)
+        
+        return np.dot(np.diag(self.Xs[:,n]), prob)
+        #return np.array([1. - np.exp(-self.dT * sum(rates)) for rates in self.removal_rates(n)])
+        #return np.array([np.prod([(1. - np.exp(-self.dT*rate)) for rate in rates]) for rates in self.removal_rates(n)])
+
+    def total_removal_prob_markovian(self, n):
+        """ Total - needed because we have individual fluxes"""
+        return 1. - np.exp(-self.dT * self.removal_rates(n).sum(1))
+
+    def total_removal_flux_markovian(self, n):
         """ Defines all Markovian removal processes """
-        return self.removal_prob_markovian(n) * self.Xs[:,n]
+        return self.total_removal_prob_markovian(n) * self.Xs[:,n]
     
     def removal_flux_anomalous(self, n):
         """ Defines all outward anomalous removal processes """
@@ -694,22 +709,17 @@ class DTRW_compartment(object):
                 flux[i] = (1. - np.exp(-self.dT * self.anom_rates[i])) * (self.Xs[i,:n+1] * self.survival_probs[i,:n+1] * self.Ks[i][1:n+2][::-1]).sum()
         return flux 
 
-    def calc_anom_flux(self, K, X, survival_prob, n):
-        """ Handy function to calculate outward flux due to a kernel 
-            Theta is the survival prob. of all other compartments """
-        return (X[:n] * survival_prob[:n] * K[1:n+1][::-1]).sum()
-
     def time_step(self):
         """ Step forwards directly with X using the memory kernels K, this
             method is only available in cases where we can calculate K analytically!"""
  
         # Increment the time counter
         self.n += 1
-        
+
         # Update survival probabilities
-        self.survival_probs[:,:self.n] = self.survival_probs[:,:self.n] * np.vstack(1. - self.removal_prob_markovian(self.n-1))
+        self.survival_probs[:,:self.n] = self.survival_probs[:,:self.n] * np.vstack(1. - self.total_removal_prob_markovian(self.n-1))
         # Update popultions
-        self.Xs[:,self.n] = self.Xs[:,self.n-1] + self.creation_flux(self.n-1) - self.removal_flux_markovian(self.n-1) - self.removal_flux_anomalous(self.n-1)
+        self.Xs[:,self.n] = self.Xs[:,self.n-1] + self.creation_flux(self.n-1) - self.total_removal_flux_markovian(self.n-1) - self.removal_flux_anomalous(self.n-1)
 
     def solve_all_steps(self):
         """Solve the time steps using the memory kernel, available only if we know how to calculate K"""
@@ -738,109 +748,12 @@ class DTRW_SIR(DTRW_compartment):
         self.anom_rates[1] = self.mu
 
     def creation_flux(self, n):
-        return np.array([(1. - np.exp(-self.dT * self.lam)), \
-                         (1. - np.exp(-self.dT * self.omega * self.Xs[1,n])) * self.Xs[0,n], \
+        return np.array([np.exp(self.dT * self.lam)-1., \
+                         self.removal_flux_markovian(n)[0,0], \
                          self.removal_flux_anomalous(n)[1] ])
 
-    def removal_rate(self, n):
-        return np.array([self.omega * self.Xs[1, n] + self.gamma, \
-                         self.gamma, \
-                         self.gamma])
+    def removal_rates(self, n):
+        return np.array([[self.omega * self.Xs[1, n], self.gamma], \
+                         [self.gamma, 0.], \
+                         [self.gamma, 0.]])
 
-     
-class DTRW_PBPK(DTRW_compartment):
-
-    def __init__(self, X_inits, T, dT, V, Q, R, mu, Vmax, Km, g, g_T):
-        
-        if len(X_inits) != 6:
-            # Error!
-            print "Need six initial points"
-            raise SystemExit
-
-        super(DTRW_PBPK, self).__init__(X_inits, T, dT)
-         
-        self.Vs = V
-        self.Qs = Q
-        self.Rs = R
-        self.mu = mu
-        self.Vmax = Vmax
-        self.Km = Km
-        self.g = g
-        self.g_T = g_T
-
-    def creation_flux(self, n):
-        g_N = 0.
-        if (n * self.dT < self.g_T):
-            g_N = self.g * self.dT
-        return np.array([(1. - np.exp(-self.dT * self.Qs[0] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[1] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[2] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[3] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[4] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[0] / (self.Vs[0] * self.Rs[0]))) * self.Xs[0,n] + \
-                         (1. - np.exp(-self.dT * self.Qs[1] / (self.Vs[1] * self.Rs[1]))) * self.Xs[1,n] + \
-                         (1. - np.exp(-self.dT * self.Qs[2] / (self.Vs[2] * self.Rs[2]))) * self.Xs[2,n] + \
-                         (1. - np.exp(-self.dT * self.Qs[3] / (self.Vs[3] * self.Rs[3]))) * self.Xs[3,n] + \
-                         (1. - np.exp(-self.dT * self.Qs[4] / (self.Vs[4] * self.Rs[4]))) * self.Xs[4,n] + \
-                         g_N ])
-
-
-    def removal_rate(self, n):
-        return np.array([self.Qs[0] / (self.Vs[0] * self.Rs[0]), \
-                         self.Qs[1] / (self.Vs[1] * self.Rs[1]), \
-                         self.Qs[2] / (self.Vs[2] * self.Rs[2]), \
-                         self.Qs[3] / (self.Vs[3] * self.Rs[3]) + self.mu / self.Vs[3], \
-                         self.Qs[4] / (self.Vs[4] * self.Rs[4]) + self.Vmax / (self.Vs[4] * self.Km + self.Xs[4,n]), \
-                         sum(self.Qs) / self.Vs[5] ])
-     
-class DTRW_PBPK_anom(DTRW_compartment):
-
-    def __init__(self, X_inits, T, dT, V, Q, R, mu, Vmax, Km, g, g_T, alpha):
-        
-        if len(X_inits) != 6:
-            # Error!
-            print "Need six initial points"
-            raise SystemExit
-
-        super(DTRW_PBPK_anom, self).__init__(X_inits, T, dT)
-         
-        self.Vs = V
-        self.Qs = Q
-        self.Rs = R
-        self.mu = mu
-        self.Vmax = Vmax
-        self.Km = Km
-        self.g = g
-        self.g_T = g_T
-
-        self.alpha = alpha
-        self.Ks[2] = calc_sibuya_kernel(self.N+1, self.alpha)
-        self.Ks[5] = calc_sibuya_kernel(self.N+1, self.alpha)
-        self.anom_rates[2] = self.Qs[2] / (self.Vs[2] * self.Rs[2])
-        self.anom_rates[5] = self.Qs[2] / (self.Vs[5])
-
-    def creation_flux(self, n):
-        g_N = 0.
-        if (n * self.dT < self.g_T):
-            g_N = self.g * self.dT
-        return np.array([(1. - np.exp(-self.dT * self.Qs[0] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[1] / self.Vs[5])) * self.Xs[5,n], \
-                         self.removal_flux_anomalous(n)[5], \
-                         (1. - np.exp(-self.dT * self.Qs[3] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[4] / self.Vs[5])) * self.Xs[5,n], \
-                         (1. - np.exp(-self.dT * self.Qs[0] / (self.Vs[0] * self.Rs[0]))) * self.Xs[0,n] + \
-                         (1. - np.exp(-self.dT * self.Qs[1] / (self.Vs[1] * self.Rs[1]))) * self.Xs[1,n] + \
-                         self.removal_flux_anomalous(n)[2] + \
-                         (1. - np.exp(-self.dT * self.Qs[3] / (self.Vs[3] * self.Rs[3]))) * self.Xs[3,n] + \
-                         (1. - np.exp(-self.dT * self.Qs[4] / (self.Vs[4] * self.Rs[4]))) * self.Xs[4,n] + \
-                         g_N ])
-
-
-    def removal_rate(self, n):
-        return np.array([self.Qs[0] / (self.Vs[0] * self.Rs[0]), \
-                         self.Qs[1] / (self.Vs[1] * self.Rs[1]), \
-                         0.0, \
-                         self.Qs[3] / (self.Vs[3] * self.Rs[3]) + self.mu / self.Vs[3], \
-                         self.Qs[4] / (self.Vs[4] * self.Rs[4]) + self.Vmax / (self.Vs[4] * self.Km + self.Xs[4,n]), \
-                         (sum(self.Qs) - self.Qs[2]) / self.Vs[5] ])
-                    
