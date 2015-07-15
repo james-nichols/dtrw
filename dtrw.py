@@ -160,7 +160,6 @@ class DTRW(object):
         # Xs is either a single initial condition, or a list of initial conditions,
         # for multi-species calculations, so we check first and act accordingly
         self.Xs = []
-        self.Qs = []
         if type(X_inits) == list:
             for X in X_inits:
                 X_init = np.dstack([X])
@@ -168,18 +167,11 @@ class DTRW(object):
                 self.Xs.append(np.zeros((X_init.shape[0], X_init.shape[1], N)))
                 self.Xs[-1][:,:,0] = X_init[:,:,0]
                 
-                Q_init = np.dstack([X])
-                self.Qs.append(np.zeros((Q_init.shape[0], Q_init.shape[1], N)))
-                self.Qs[-1][:,:,0] = Q_init[:,:,0]
         else:
             X_init = np.dstack([X_inits])
             self.Xs.append(np.zeros((X_init.shape[0], X_init.shape[1], N)))
             self.Xs[0][:,:,0] = X_init[:,:,0]
             
-            Q_init = np.dstack([X_inits])
-            self.Qs.append(np.zeros((Q_init.shape[0], Q_init.shape[1], N)))
-            self.Qs[0][:,:,0] = Q_init[:,:,0]
-
         self.shape = self.Xs[0][:,:,0].shape
         self.size = self.Xs[0][:,:,0].size
 
