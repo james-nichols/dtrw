@@ -11,8 +11,8 @@ from itertools import *
 import pdb
 
 # TODO LIST
-# o Make the SIR / compartment model work for testing
 # o Potentially put r back in to lambda and do it that way, remove from apply_BC argument
+# o remove the self.potential argument from the constructor, except in cases where something's needed (otherwise it's defined in calc_potential)
 
 def calc_sibuya_kernel(N, alpha):
     """ The Sibuya Kernel as defined in J Phys Comp """
@@ -89,7 +89,11 @@ class BC_Fedotov_balance(BC):
     def apply_BCs(self, next_X, flux, r, dtrw):
         # Only left side has BC
         next_X[:,0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
-        next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0] 
+        next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0]
+        # Disappearing flux from RHS gets re-directed in to LHS point
+        #next_X[:,0] += r * dtrw.lam[:,-1,1] * flux[:,-1]
+        # Testing: zero flux on RHS too...
+        #next_X[:,-1] += r * dtrw.lam[:,-1,1] * flux[:,-1]
 
 class BC_periodic(BC):
     
@@ -111,29 +115,7 @@ class BC_zero_flux(BC):
         pass 
 
     def apply_BCs(self, next_X, flux, r, dtrw):
-        # Apply the boundary conditions
-        next_X[:,-1] = next_X[:,-3]
-        next_X[:,0] = next_X[:,2]
-        
-        # New regime: simply reflect flux back where it came from!
-        #next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0]
-        #next_X[:,-1] += r * dtrw.lam[:,-1,1] * flux[:,-1]
-
-        if next_X.shape[0] > 1:
-            next_X[-1,:] = next_X[-3,:]
-            next_X[0,:] = next_X[2,:]
-            #next_X[0,:] += r * dtrw.lam[0,:,2] * flux[0,:]
-            #next_X[-1,:] += r * dtrw.lam[-1,:,3] * flux[-1,:]
-
-class BC_zero_flux_centred(BC):
-    
-    def __init__(self):
-        pass 
-
-    def apply_BCs(self, next_X, flux, r, dtrw):
-        # Apply the boundary conditions
-        
-        # New regime: simply reflect flux back where it came from!
+        # Apply the boundary conditions, simply reflect flux back where it came from!
         next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0]
         next_X[:,-1] += r * dtrw.lam[:,-1,1] * flux[:,-1]
 
@@ -167,7 +149,7 @@ class DTRW(object):
     def __init__(self, X_inits, N, r = 1., history_length = 2, boltz_beta = 0., potential = np.array([]), boundary_condition=BC()):
         """X is the initial concentration field, N is the number of time steps to simulate"""
 
-        if isinstance(boundary_condition, BC_zero_flux) or isinstance(boundary_condition, BC_zero_flux_centred): 
+        if isinstance(boundary_condition, BC_zero_flux_centred): 
             # Make ghost points...
             for i in range(len(X_inits)):
                 if len(X_inits[i].shape) > 1:
@@ -218,10 +200,11 @@ class DTRW(object):
         self.n = 0
     
         self.boltz_beta = boltz_beta
-        self.calc_lambda(potential)
+        self.potential = potential
+        self.calc_lambda(self.calc_potential())
         self.calc_psi()
         self.calc_Phi()
-      
+        
         self.omegas = None
         self.thetas = None
         self.nus = None
@@ -231,6 +214,9 @@ class DTRW(object):
         
         self.calc_mem_kernel()
     
+    def calc_potential(self):
+        return self.potential
+
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
@@ -247,7 +233,7 @@ class DTRW(object):
             if len(potential.shape) == 1: # As np.dstack introduces two more dimensions, in the 1-D case we need to as well
                 potential = potential[np.newaxis]
             # Calculate the transition probabilities Boltzmann style based on potentials.
-            boltz_func = np.exp(-self.boltz_beta * potential)
+            boltz_func = np.exp(- self.boltz_beta * potential)
             boltz_denom = np.zeros(boltz_func.shape)
             boltz_denom[:,:-1] += boltz_func[:,1:]
             boltz_denom[:,1:] += boltz_func[:,:-1]
@@ -351,7 +337,7 @@ class DTRW(object):
             lookback = min(self.n, self.history_length)
             
             # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
-
+            
             # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
             flux = (Q[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
 
@@ -405,7 +391,7 @@ class DTRW(object):
             omega = self.omegas[i]
             nu = self.nus[i]
             r = self.r[i]
-
+             
             # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
             flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
             next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
@@ -413,7 +399,7 @@ class DTRW(object):
             if (flux < 0.).sum() == True:
                 print "Step", i, "has -ve flux"
                 print flux
-
+             
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
             next_X[:,:-1] += r * (self.lam[:,:,0] * flux)[:,1:]
@@ -435,6 +421,8 @@ class DTRW(object):
             self.calc_omega()
             self.calc_theta()
             self.calc_nu() 
+            
+            self.calc_lambda(self.calc_potential())
 
     def solve_all_steps_with_Q(self):
 
@@ -449,7 +437,7 @@ class DTRW(object):
             #    print "Solved to step", i
             self.time_step()
         
-        if isinstance(self.boundary_condition, BC_zero_flux) or isinstance(self.boundary_condition, BC_zero_flux_centred): 
+        if isinstance(self.boundary_condition, BC_zero_flux_centred): 
             # Get rid of ghost points...
             for i in range(len(self.Xs)):
                 if self.Xs[i].shape[0] > 1:
@@ -472,7 +460,7 @@ class DTRW_diffusive(DTRW):
 
     def calc_psi(self):
         """Waiting time distribution for spatial jumps"""
-        self.psi = np.array([self.omega * pow(1. - self.omega, i-1) for i in range(self.history_length+1)])
+        self.psi = np.array([self.omega * pow(1. - self.omega, max(0,i-1)) for i in range(self.history_length+1)])
         self.psi[0] = 0.
 
     def calc_Phi(self):
@@ -634,7 +622,7 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
         if self.omegas == None:
             self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
         
-        self.omegas[0][:,:,self.n] = self.k * self.Xs[0][:,:,self.n] #1. - np.exp(-self.k * self.Xs[0][:,:,self.n] * self.Xs[0][:,:,self.n])
+        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k * self.Xs[0][:,:,self.n]) #self.k * self.Xs[0][:,:,self.n] #1
 
     def calc_nu(self):
         """Likelihood of birth happening at i, just zero as there's no births """
@@ -661,7 +649,6 @@ class DTRW_compartment(object):
         #self.creation_rates = np.zeros([self.n_species, 1])
 
         self.Ks = [None] * self.n_species
-        self.anom_rates = np.zeros(self.n_species)
 
         self.Xs = np.zeros([self.n_species, self.N])
         self.Xs[:,0] = X_inits
@@ -675,6 +662,9 @@ class DTRW_compartment(object):
 
     def creation_flux(self, n):
         """ Defines all creation processes for each compartment """
+        return np.zeros(self.n_species)
+    
+    def anomalous_rates(self, n):
         return np.zeros(self.n_species)
 
     def removal_rates(self, n):
@@ -706,7 +696,7 @@ class DTRW_compartment(object):
         flux = np.zeros(self.n_species)
         for i in range(self.n_species):
             if self.Ks[i] != None:
-                flux[i] = (1. - np.exp(-self.dT * self.anom_rates[i])) * (self.Xs[i,:n+1] * self.survival_probs[i,:n+1] * self.Ks[i][1:n+2][::-1]).sum()
+                flux[i] = (1. - np.exp(-self.dT * self.anomalous_rates(n)[i])) * (self.Xs[i,:n+1] * self.survival_probs[i,:n+1] * self.Ks[i][1:n+2][::-1]).sum()
         return flux 
 
     def time_step(self):
@@ -746,11 +736,14 @@ class DTRW_SIR(DTRW_compartment):
 
         self.Ks[1] = calc_sibuya_kernel(self.N+1, self.alpha)
         self.anom_rates[1] = self.mu
-
+    
     def creation_flux(self, n):
         return np.array([np.exp(self.dT * self.lam)-1., \
                          self.removal_flux_markovian(n)[0,0], \
                          self.removal_flux_anomalous(n)[1] ])
+
+    def anomalous_rates(self, n):
+        return np.array([0., self.mu, 0.])
 
     def removal_rates(self, n):
         return np.array([[self.omega * self.Xs[1, n], self.gamma], \
