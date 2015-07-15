@@ -202,8 +202,6 @@ class DTRW(object):
         self.boltz_beta = boltz_beta
         self.potential = potential
         self.calc_lambda(self.calc_potential())
-        self.calc_psi()
-        self.calc_Phi()
         
         self.omegas = None
         self.thetas = None
@@ -292,14 +290,6 @@ class DTRW(object):
                 # if there isn't the second dimension, prob's are 0.5
                 self.lam = 0.5 * self.lam
 
-    def calc_psi(self):
-        """Waiting time distribution for spatial jumps"""
-        self.psi = np.zeros(self.history_length+1) 
-
-    def calc_Phi(self):
-        """PDF of not jumping up to time n"""
-        self.Phi = np.ones(self.history_length+1)
-
     def calc_omega(self):
         """ Likelihood of surviving between n and n+1"""
         if self.omegas == None:
@@ -319,62 +309,6 @@ class DTRW(object):
         """Likelihood of birth happening at i"""
         if self.nus == None:
             self.nus = [np.zeros(X.shape) for X in self.Xs]
-
-    def time_step_with_Q(self):
-        """Take a time step forward using arrival densities. NOTE in the diffusive case 
-        it is necessary to use a full history to get this one right"""
-        
-        # First we increment the time counter!
-        self.n += 1
- 
-        for i in range(len(self.Xs)):
-            Q = self.Qs[i]
-            theta = self.thetas[i]
-            omega = self.omegas[i]
-            nu = self.nus[i]
-
-            # How many time steps have we had?
-            lookback = min(self.n, self.history_length)
-            
-            # Matrix methods to calc Q as in eq. (9) in the J Comp Phys paper
-            
-            # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
-            flux = (Q[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.psi[1:lookback+1][::-1]).sum(2) 
-
-            # Now apply lambda jump probabilities
-            next_Q = np.zeros(self.shape)
-            
-            # First multiply by all the left jump probabilities
-            next_Q[:,:-1] += (self.lam[:,:,0] * flux)[:,1:]
-            # then all the right jump 
-            next_Q[:,1:] += (self.lam[:,:,1] * flux)[:,:-1]
-            if self.boundary_condition is BC_periodic:
-                next_Q[:,-1] += self.lam[:,0,0] * flux[:,0]
-                next_Q[:,0] += self.lam[:,-1,1] * flux[:,-1]
-            if self.shape[0] > 1:
-                # The up jump
-                next_Q[:-1,:] += (self.lam[:,:,2] * flux)[1:,:]
-                # The down jump
-                next_Q[1:,:] += (self.lam[:,:,3] * flux)[:-1,:]
-                if self.boundary_condition is BC_periodic:
-                    next_Q[-1,:] += self.lam[0,:,2] * flux[0,:]
-                    next_Q[0,:] += self.lam[-1,:,3] * flux[-1,:]
-
-            # Add Q to the list of Qs over time
-            self.Qs[i][:,:,self.n] = next_Q
-
-            lookback = min(self.n+1, self.history_length)
-            
-            # Matrix methods to calc X as in eq. (11) in the J Comp Phys paper
-  
-            # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
-            next_X = (Q[:, :, self.n+1-lookback:self.n+1] * theta[:,:,self.n+1-lookback:self.n+1] * self.Phi[:lookback][::-1]).sum(2) + nu[:,:,self.n-1]
-
-            self.Xs[i][:,:,self.n] = next_X
-       
-        self.calc_omega()
-        self.calc_theta()
-        self.calc_nu() 
 
     def time_step(self):
         """ Step forwards directly with X using the memory kernel K, this
@@ -458,15 +392,6 @@ class DTRW_diffusive(DTRW):
 
         super(DTRW_diffusive, self).__init__(X_inits, N, r, history_length, boltz_beta, potential, boundary_condition)
 
-    def calc_psi(self):
-        """Waiting time distribution for spatial jumps"""
-        self.psi = np.array([self.omega * pow(1. - self.omega, max(0,i-1)) for i in range(self.history_length+1)])
-        self.psi[0] = 0.
-
-    def calc_Phi(self):
-        """PDF of not jumping up to time n"""
-        self.Phi = np.array([pow(1. - self.omega, i) for i in range(self.history_length+1)])
-    
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
@@ -480,26 +405,6 @@ class DTRW_subdiffusive(DTRW):
         self.alpha = alpha
         super(DTRW_subdiffusive, self).__init__(X_inits, N, r, history_length, boltz_beta, potential, boundary_condition)
 
-    def calc_psi(self):
-        """Waiting time distribution for spatial jumps"""
-        
-        self.psi = np.zeros(self.history_length+1)
-        self.psi[0] = 0.
-        
-        self.psi[1] = self.alpha
-        for i in range(2,self.history_length+1):
-            self.psi[i] = self.psi[i-1] * (float(i) - 1. - self.alpha) / float(i)
-        
-        # Highly dubious: Normalising psi so that we conservation of particles
-        # self.psi[-1] = 1.0 - self.psi[:-1].sum()
-        
-    def calc_Phi(self):
-        """PDF of not jumping up to time n"""
-        self.Phi = np.ones(self.history_length+1)
-        self.Phi[1] = 1.0 - self.alpha
-        for i in range(2, self.history_length+1):
-            self.Phi[i] = self.Phi[i-1] * (float(i) - self.alpha) / float(i)
-        
     def calc_mem_kernel(self):
         """Once off call to calculate the memory kernel and store it"""
         self.K = np.zeros(self.history_length+1)
