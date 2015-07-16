@@ -25,21 +25,21 @@ class DTRW_diffusive_two_way(DTRW_diffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
             
         # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
         # a 
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
+        self.omegas[0][:,:] = 1. - np.exp(-self.k_1) 
         # b 
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2)
+        self.omegas[1][:,:] = 1. - np.exp(-self.k_2)
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
 
 class DTRW_subdiffusive_two_way(DTRW_subdiffusive):
      
@@ -53,25 +53,25 @@ class DTRW_subdiffusive_two_way(DTRW_subdiffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
             
         # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
         # a 
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
-        #self.omegas[0][:,:,self.n] = - self.k_1 
+        self.omegas[0][:,:] = 1. - np.exp(-self.k_1) 
+        #self.omegas[0][:,:] = - self.k_1 
         # b 2.
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2)
-        #self.omegas[1][:,:,self.n] = - self.k_2
+        self.omegas[1][:,:] = 1. - np.exp(-self.k_2)
+        #self.omegas[1][:,:] = - self.k_2
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
             self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
-        #self.nus[0][:,:,self.n] = -self.k_2 * self.Xs[1][:,:,self.n]
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
-        #self.nus[1][:,:,self.n] = -self.k_1 * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        #self.nus[0][:,:] = -self.k_2 * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
+        #self.nus[1][:,:] = -self.k_1 * self.Xs[0][:,:,self.n]
 
 
 alpha_1 = 0.5

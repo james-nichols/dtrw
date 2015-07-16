@@ -88,7 +88,7 @@ class BC_Fedotov_balance(BC):
 
     def apply_BCs(self, next_X, flux, r, dtrw):
         # Only left side has BC
-        next_X[:,0] += (dtrw.omegas[0][:,:,dtrw.n-1] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
+        next_X[:,0] += (dtrw.omegas[0] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
         next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0]
         # Disappearing flux from RHS gets re-directed in to LHS point
         #next_X[:,0] += r * dtrw.lam[:,-1,1] * flux[:,-1]
@@ -285,7 +285,7 @@ class DTRW(object):
     def calc_omega(self):
         """ Likelihood of surviving between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros(X.shape) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
 
     def calc_theta(self):
         """ Probability of surviving between 0 and n"""
@@ -295,12 +295,12 @@ class DTRW(object):
         for i in range(len(self.Xs)):
             #self.thetas[i][:,:,self.n] = (1. - self.omegas[i][:,:,:self.n+1]).prod(2)
             # Above is wrong! Below is right!!!! remember you want theta between m and n, not 0 and m!!!!
-            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:,self.n]])
+            self.thetas[i][:,:,:self.n+1] = self.thetas[i][:,:,:self.n+1] * np.dstack([1. - self.omegas[i][:,:]])
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros(X.shape) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
 
     def time_step(self):
         """ Step forwards directly with X using the memory kernel K, this
@@ -320,7 +320,7 @@ class DTRW(object):
              
             # Matrix multiply to calculate flux (using memory kernel), then sum in last dimension (2), to get outward flux
             flux = (X[:, :, self.n-lookback:self.n] * theta[:,:,self.n-lookback:self.n] * self.K[1:lookback+1][::-1]).sum(2)
-            next_X = X[:,:,self.n-1] - r * flux - omega[:,:,self.n-1] * X[:,:,self.n-1] + nu[:,:,self.n-1]
+            next_X = X[:,:,self.n-1] - r * flux - omega * X[:,:,self.n-1] + nu
            
             if (flux < 0.).sum() == True:
                 print "Step", i, "has -ve flux"
@@ -418,9 +418,7 @@ class DTRW_subdiffusive_with_death(DTRW_subdiffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k) 
+            self.omegas = [(1. - np.exp(-self.k)) * np.ones((X.shape[0], X.shape[1])) for X in self.Xs]
         
 class DTRW_diffusive_with_transition(DTRW_diffusive):
     
@@ -436,17 +434,17 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
             
         # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
         # Virions, layer 1
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
+        self.omegas[0][:,:] = 1. - np.exp(-self.k_1) 
         
         # Virions, layer 2 
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2 - self.clearance_rate)
+        self.omegas[1][:,:] = 1. - np.exp(-self.k_2 - self.clearance_rate)
 
         # Target CD4+ cells, layer 2
-        self.omegas[2][:,:,self.n] = 1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])
+        self.omegas[2][:,:] = 1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])
         
         # Infected CD4+ cells, layer 2
         # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
@@ -454,14 +452,14 @@ class DTRW_diffusive_with_transition(DTRW_diffusive):
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
     
         # Here we get birth rates that reflect death rates, that is, everything balances out in the end.
-        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
         # No birth proces for target cells
         #self.nus[2][:,:,self.n]
-        self.nus[3][:,:,self.n] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
+        self.nus[3][:,:] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
 
 
 class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
@@ -478,17 +476,17 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
             
         # We assume that the calculation has been made for all n up to now, so we simply update the n-th point
         # Virions, layer 1
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k_1) 
+        self.omegas[0][:,:] = 1. - np.exp(-self.k_1) 
         
         # Virions, layer 2 
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.k_2 - self.clearance_rate)
+        self.omegas[1][:,:] = 1. - np.exp(-self.k_2 - self.clearance_rate)
 
         # Target CD4+ cells, layer 2
-        self.omegas[2][:,:,self.n] = 1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])
+        self.omegas[2][:,:] = 1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])
         
         # Infected CD4+ cells, layer 2
         # For now NO DEATH PROCESS - FOR TESTING CONSERVATION OF PARTICLES
@@ -496,14 +494,14 @@ class DTRW_subdiffusive_with_transition(DTRW_subdiffusive):
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
     
         # Here we get birth rates that reflect death rates, that is, everything balances out in the end.
-        self.nus[0][:,:,self.n] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:] = (1. - np.exp(-self.k_2)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:] = (1. - np.exp(-self.k_1)) * self.Xs[0][:,:,self.n]
         # No birth proces for target cells
         #self.nus[2][:,:,self.n]
-        self.nus[3][:,:,self.n] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
+        self.nus[3][:,:] = (1. - np.exp(-self.infection_rate * self.Xs[1][:,:,self.n])) * self.Xs[2][:,:,self.n]
 
 class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
     """ A subdiffusive system as outlined in Fedotov & Falconer, 2014. We check the results
@@ -517,14 +515,14 @@ class DTRW_subdiffusive_fedotov_death(DTRW_subdiffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
         
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k * self.Xs[0][:,:,self.n]) #self.k * self.Xs[0][:,:,self.n] #1
+        self.omegas[0][:,:] = 1. - np.exp(-self.k * self.Xs[0][:,:,self.n]) #self.k * self.Xs[0][:,:,self.n] #1
 
     def calc_nu(self):
         """Likelihood of birth happening at i, just zero as there's no births """
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
 
 #####################
 # COMPARTMENT MODELS

@@ -21,17 +21,12 @@ class DTRW_diffusive_two_way(DTRW_diffusive):
 
         super(DTRW_diffusive_two_way, self).__init__(X_inits, N, alpha, r=r, history_length=history_length, boltz_beta=boltz_beta, potential=potential, boundary_condition=boundary_condition)
    
-    def calc_omega(self):
-        """ Probability of death between n and n+1"""
-        if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-            
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = self.k
+            self.nus[0][:,:] = self.k
 
 class DTRW_subdiffusive_two_way(DTRW_subdiffusive):
      
@@ -44,9 +39,9 @@ class DTRW_subdiffusive_two_way(DTRW_subdiffusive):
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = self.k
+            self.nus[0][:,:] = self.k
 
 
 alpha_1 = 0.5

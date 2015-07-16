@@ -24,9 +24,7 @@ class DTRW_burgers(DTRW_diffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
-
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.k)
+            self.omegas = [ (1. - np.exp(-self.k)) * np.ones((X.shape[0], X.shape[1])) for X in self.Xs]
 
 
 n_points = 101

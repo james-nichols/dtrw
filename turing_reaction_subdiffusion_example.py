@@ -24,18 +24,18 @@ class DTRW_diffusive_turing_example(DTRW_diffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
             
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.a)
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.c)
+            self.omegas[0][:,:] = 1. - np.exp(-self.a)
+            self.omegas[1][:,:] = 1. - np.exp(-self.c)
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = (1. - np.exp(-self.b)) * self.Xs[1][:,:,self.n]
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.d)) * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:] = (1. - np.exp(-self.b)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:] = (1. - np.exp(-self.d)) * self.Xs[0][:,:,self.n]
 
 
 class DTRW_subdiffusive_turing_example(DTRW_subdiffusive):
@@ -52,18 +52,18 @@ class DTRW_subdiffusive_turing_example(DTRW_subdiffusive):
     def calc_omega(self):
         """ Probability of death between n and n+1"""
         if self.omegas == None:
-            self.omegas = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.omegas = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
             
-        self.omegas[0][:,:,self.n] = 1. - np.exp(-self.a)
-        self.omegas[1][:,:,self.n] = 1. - np.exp(-self.c)
+        self.omegas[0][:,:] = 1. - np.exp(-self.a)
+        self.omegas[1][:,:] = 1. - np.exp(-self.c)
 
     def calc_nu(self):
         """Likelihood of birth happening at i"""
         if self.nus == None:
-            self.nus = [np.zeros((X.shape[0], X.shape[1], self.N)) for X in self.Xs]
+            self.nus = [np.zeros((X.shape[0], X.shape[1])) for X in self.Xs]
     
-        self.nus[0][:,:,self.n] = (1. - np.exp(-self.b)) * self.Xs[1][:,:,self.n]
-        self.nus[1][:,:,self.n] = (1. - np.exp(-self.d)) * self.Xs[0][:,:,self.n]
+        self.nus[0][:,:] = (1. - np.exp(-self.b)) * self.Xs[1][:,:,self.n]
+        self.nus[1][:,:] = (1. - np.exp(-self.d)) * self.Xs[0][:,:,self.n]
 
 n_points = 40 
 L = 1.0
