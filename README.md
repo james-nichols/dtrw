@@ -7,7 +7,6 @@ This repository contains code that replicates results in several papers, current
 
 TODO:
 -----
-- Solve using arrival densities methods, as of recently, no longer gives the same results, see e.g. compare_diffusion_methods.py script.
-- Complete the compartment model library for FSIR and other simulations.
+- Clean up and streamline compartment model code
+- Potentially do multiple inheritance for subdiffusive vs diffusive classes, or have diffusive and non-diffusive in the one class...
 - Include knowledge of Delta T and Delta X in the DTRW class, so spatial parameters are abstracted within the class, perhaps even within some factory class...
-- Remove the has_spatial_reactions logic, and simplify the inheritance tree of diffusive vs subdiffusive DTRW classes, potentially allowing for multiple inheritance for various features, e.g. for subdiffusion with two-layer transitions....
