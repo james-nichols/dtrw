@@ -91,9 +91,9 @@ class BC_Fedotov_balance(BC):
         next_X[:,0] += (dtrw.omegas[0] * dtrw.Xs[0][:,:,dtrw.n-1]).sum()
         next_X[:,0] += r * dtrw.lam[:,0,0] * flux[:,0]
         # Disappearing flux from RHS gets re-directed in to LHS point
-        #next_X[:,0] += r * dtrw.lam[:,-1,1] * flux[:,-1]
+        next_X[:,0] += r * dtrw.lam[:,-1,1] * flux[:,-1]
         # Testing: zero flux on RHS too...
-        next_X[:,-1] += r * dtrw.lam[:,-1,1] * flux[:,-1]
+        #next_X[:,-1] += r * dtrw.lam[:,-1,1] * flux[:,-1]
 
 class BC_periodic(BC):
     
