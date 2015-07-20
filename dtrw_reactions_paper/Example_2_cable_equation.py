@@ -61,7 +61,7 @@ for dX in dXs:
     
     # We make the init conditions slightly bigger for the zero flux boundaries
     a_init = np.zeros(xs.shape)
-    a_init[xs.shape[0] / 2 ] = 1.0 / dX #float(n_points)/2.
+    a_init[xs.shape[0] / 2 ] = float(xs.shape[0])/2.
     b_init = np.zeros(xs.shape)
 
     N = int(round(T / dT) + 1)

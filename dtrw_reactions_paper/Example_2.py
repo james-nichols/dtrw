@@ -82,7 +82,7 @@ k_1 = 1.
 r = 1.
 
 #dXs = [0.2, 0.1, 1.0/15.0, 0.05, 0.025, 0.0125]
-dXs = [1./5., 1./7., 1./10., 1./15., 1./20., 1./30.]
+dXs = [1./2, 1./5., 1./7., 1./10., 1./15., 1./20., 1./30.]
 
 for dX in dXs:
      
@@ -92,7 +92,7 @@ for dX in dXs:
     
     # We make the init conditions slightly bigger for the zero flux boundaries
     a_init = np.zeros(xs.shape)
-    a_init[xs.shape[0] / 2 ] = 1.0 / dX #float(n_points)/2.
+    a_init[xs.shape[0] / 2 ] = float(xs.shape[0])/2.
     b_init = np.zeros(xs.shape)
 
     N = int(round(T / dT) + 1)
