@@ -306,6 +306,11 @@ class DTRW(object):
         """ Step forwards directly with X using the memory kernel K, this
             method is only available in cases where we can calculate K analytically!"""
  
+        self.calc_nu() 
+        self.calc_omega()
+        self.calc_theta()
+        self.calc_lambda(self.calc_potential())
+
         # First we increment the time counter!
         self.n += 1
         # This allows for the limited history, an approximation to speed things up.
@@ -343,12 +348,6 @@ class DTRW(object):
             
             # stack next_X on to the list of fields X - giving us another layer in the 3d array of spatial results
             self.Xs[i][:,:,self.n] = next_X
-   
-            self.calc_omega()
-            self.calc_theta()
-            self.calc_nu() 
-            
-            self.calc_lambda(self.calc_potential())
 
     def solve_all_steps_with_Q(self):
 
