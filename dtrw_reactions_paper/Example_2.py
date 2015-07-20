@@ -81,7 +81,6 @@ k_1 = 1.
 
 r = 1.
 
-#dXs = [0.2, 0.1, 1.0/15.0, 0.05, 0.025, 0.0125]
 dXs = [1./2, 1./5., 1./7., 1./10., 1./15., 1./20., 1./30.]
 
 for dX in dXs:
@@ -111,18 +110,12 @@ for dX in dXs:
     bc = BC_zero_flux()
 
     dtrw_sub_1 = DTRW_subdiffusive_two_way([a_init, b_init], N_1, alpha_1, k_1 * dT, k_1 * dT, r=r, history_length=N_1, boundary_condition=bc)
-    #dtrw = DTRW_diffusive_two_way([a_init, b_init], N, omega, k_1 * dT, k_1 * dT, history_length=2, boundary_condition=bc)
 
-    #dtrw.solve_all_steps()
-    #print "Exp case solved"
     dtrw_sub_1.solve_all_steps()
     
     dtrw_file_name = "DTRW_dT_{0:f}_dX_{1:f}.csv".format(dT, dX)
-
-    #np.savetxt("a_" + dtrw_file_name, dtrw.Xs[0][0,:,-1], delimiter=",")
-    #np.savetxt("b_" + dtrw_file_name, dtrw.Xs[1][0,:,-1], delimiter=",")
-
     dtrw_file_name_alpha_1 = "DTRW_dT_{0:f}_dX_{1:f}_alpha_{2:f}.csv".format(dT, dX, alpha_1)
+    
     np.savetxt("a_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[0][0,:,-1], delimiter=",")
     np.savetxt("b_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[1][0,:,-1], delimiter=",")
     np.savetxt("a_2ndLast_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[0][0,:,-2], delimiter=",")
@@ -130,41 +123,4 @@ for dX in dXs:
 
     t_alpha_1 = "T_dT_{0:f}_alpha_{1:f}.csv".format(dT, alpha_1)
     np.savetxt(t_alpha_1, ts_1, delimiter=",")
-
-#fig = plt.figure(figsize=(8,8))
-
-#ax1 = fig.add_subplot(1,2,1)
-#plt.xlim(-1., 1.)
-#plt.ylim(0., 5.)
-#line1, = plt.plot([],[],'r-')
-#line2, = plt.plot([],[],'g-')
-#line3, = plt.plot([],[],'k-')
-#plt.legend([line1, line2, line3], ["a", "b", "sum"])
-
-#ax2 = fig.add_subplot(1,2,2)
-#line4, = ax2.plot([],[],'r-')
-#line5, = ax2.plot([],[],'g-')
-#line6, = ax2.plot([],[],'k-')
-#plt.legend([line4, line5, line6], ["a", "b", "sum"])
-
-def update(i, line1, line2, line3):
-    line1.set_data(xs,dtrw_sub_1.Xs[0][:,:,i])
-    line2.set_data(xs,dtrw_sub_1.Xs[1][:,:,i])
-    line3.set_data(xs,dtrw_sub_1.Xs[0][:,:,i] + dtrw_sub_1.Xs[1][:,:,i])
-
-    return line1, line2, line3
-
-# call the animator. blit=True means only re-draw the parts that have changed.
-#anim = animation.FuncAnimation(fig, update, 
-#        frames=N_1, fargs=(line1, line2, line3), interval=10)
-
-import inspect, os, subprocess
-exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
-git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
-
-#file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
-#print "Saving animation to", file_name
-
-#anim.save(file_name, fps=24)
-#plt.show()
 
