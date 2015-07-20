@@ -193,14 +193,10 @@ class DTRW(object):
     
         self.boltz_beta = boltz_beta
         self.potential = potential
-        self.calc_lambda(self.calc_potential())
         
         self.omegas = None
         self.thetas = None
         self.nus = None
-        self.calc_omega()
-        self.calc_theta()
-        self.calc_nu()
         
         self.calc_mem_kernel()
     
