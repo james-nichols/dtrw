@@ -49,7 +49,7 @@ U_a = np.zeros([L, N])
 U_b = np.zeros([L, N])
 
 # We set the initial condition as a delta function at the origin
-U_a[L/2, 0] = float(L)/2.0 
+U_a[L/2, 0] = 1.0 / dX
 
 # The memory kernel
 K = np.zeros(N+1)
