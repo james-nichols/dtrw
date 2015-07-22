@@ -27,13 +27,20 @@ D_alpha = 1.    # Diffusion coefficient
 r = 1.0         
 k = 1.0         # Removal rate parameter
 
-dX = 0.2       # Delta x, the spatial grid size
+interval = [-1., 1.]
+
+use_grid_points = False # Do we want to solve on grid points, or the centroids?
+
+# We now define Delta x and the spatial grid size, depending on whether we use centroid points or not
+if use_grid_points:
+    dX = (interval[1]-interval[0]) / 10. # For grid points, we need an even split
+    xs = np.arange(-1., 1.+dX, dX)       # Gives us [-1, -1+dX, ..., 1-dX, 1]
+else:
+    dX = (interval[1]-interval[0]) / 5.0 # For the centroids, we need an odd split
+    xs = np.arange(-1+0.5*dX, 1., dX)    # Gives us [-1+dX/2, -1+3dX/2, ..., 1-3dX/2, 1-dX/2]
 
 # Calculate Delta t as in Eq. (58) of the paper
 dT = math.pow(r * dX * dX / (2.0 * D_alpha), 1.0 / alpha)
-
-# x coordinates vector
-xs = np.arange(-1., 1.+dX, dX)
 
 # Number of spatial...
 L = len(xs)
