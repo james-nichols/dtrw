@@ -625,7 +625,6 @@ class DTRW_SIR(DTRW_compartment):
         self.alpha = alpha
 
         self.Ks[1] = calc_sibuya_kernel(self.N+1, self.alpha)
-        self.anom_rates[1] = self.mu
     
     def creation_flux(self, n):
         return np.array([np.exp(self.dT * self.lam)-1., \
