@@ -10,11 +10,14 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import scipy.optimize
+from matplotlib.backends.backend_pdf import PdfPages
 
 import pdb
 
 from dtrw import *
  
+pp = PdfPages('PatientFitPlots.pdf')
+
 class DTRW_HIV(DTRW_compartment):
 
     def __init__(self, X_inits, T, dT, \
@@ -50,73 +53,112 @@ class DTRW_HIV(DTRW_compartment):
         return np.array([[0.], \
                          [self.delta_V]])
 
-def produce_soln(time_series, num_ts, k, T_cells, eff, delta_I, delta_V, burst, alpha):
-    T = ts[-1]
+def produce_soln(params, k, T_cells, I_init, V_init, eff, cells, virus, num_ts):
+    T = max(cells[-1,0], virus[-1,0]) #time_series[-1,0]
     dT = T / float(num_ts)
+    
+    t = np.arange(0., T, dT)
 
-    dtrw_anom = DTRW_HIV(initial, T, dT, k, T_cells, eff, delta_I, delta_V, burst, alpha)
+    delta_I, delta_V, burst, alpha = params
+    
+    dtrw_anom = DTRW_HIV([I_init, V_init], T, dT, k, T_cells, eff, delta_I, delta_V, burst, alpha)
     dtrw_anom.solve_all_steps()
+    
+    print "Soln with params: ", delta_I, delta_V, burst, alpha
+    print cells[:,0]
+    print cells[:,1]
+    print np.interp(cells[:,0], t, dtrw_anom.Xs[0,:])
+    print rna[:,0]
+    print rna[:,1]
+    print np.interp(rna[:,0], t, dtrw_anom.Xs[1,:])
 
-    soln = np.zeros(len(ts))
-    for i in range(len(ts)):
-        t = ts[i]
-        n0 = math.floor(t / dT)
-        n1 = math.ceil(t / dT)
-        before = dtrw.Xs[1, n0]
-        after = dtrw.Xs[1, n1]
-        interp = before + (after - before) * (t - n0*dT) / dT
-        
-        soln[i] = interp
-    return soln
+    return np.append(cells[:,1] - np.interp(cells[:,0], t, dtrw_anom.Xs[0,:]), \
+                     rna[:,1] - np.interp(rna[:,0], t, dtrw_anom.Xs[1,:]))
+
 
 data_dirs = ['Perelson1997Nature/Cells', 'Perelson1997Nature/DNA', 'Perelson1997Nature/RNA']
 data = []
+data_label = []
 for data_dir in data_dirs:
     data_files = [ f for f in listdir(data_dir) ]
     data_files.sort()
+    
     data_sub = []
+    data_label_sub = []
     for data_file in data_files:
         print data_file
+        pat_num = int(filter(str.isdigit, data_file))
         data_sub.append(np.loadtxt(data_dir + '/' + data_file))
+        data_label_sub.append(pat_num)
+
     data.append(data_sub)
+    data_label.append(data_label_sub)
 
-pdb.set_trace()
+common_patients = np.intersect1d(np.intersect1d(data_label[0], data_label[1]), data_label[2])
 
-T = 10.0
-dT = 0.01
-ts = np.arange(0., T, dT)
+for pat in common_patients:
+    cells = data[0][data_label[0].index(pat)]
+    dna = data[1][data_label[1].index(pat)]
+    rna = data[2][data_label[2].index(pat)]
 
-initial = [1., 1.]
+    I_init = cells[0,1]
+    V_init = rna[0,1]
 
-k = 2.4e-5
-T_cells = 1000.
-eff = 1.0
-delta_I = 0.7
-delta_V = 5.4
-burst = 10. # This "Varies" according to Perelson '93 
+    k = 2.4e-5
+    T_cells = 1000.
+    eff = 1.0
+    delta_I = 0.7
+    delta_V = 5.4
+    burst = 10. # This "Varies" according to Perelson '93 
+    alpha = 0.8 
+    
+    init_params = [delta_I, delta_V, burst, alpha]
+    fit = scipy.optimize.leastsq(produce_soln, init_params, args=(k, T_cells, I_init, V_init, eff, cells, rna, 1e4))
+    fit = fit[0]
 
-alpha = 0.8 
+    T = rna[-1,0]
+    dT = T / 1.e4
+    ts = np.arange(0., T, dT)
 
-dtrw_hiv = DTRW_HIV(initial, T, dT, k, T_cells, eff, delta_I, delta_V, burst, 1.0)
-dtrw_hiv_anom = DTRW_HIV(initial, T, dT, k, T_cells, eff, delta_I, delta_V, burst, alpha)
+    dtrw_hiv = DTRW_HIV([I_init, V_init], T, dT, k, T_cells, eff, fit[0], fit[1], fit[2], fit[3])
+    dtrw_hiv.solve_all_steps()
 
-dtrw_hiv.solve_all_steps()
-dtrw_hiv_anom.solve_all_steps()
-pdb.set_trace()
-fig = plt.figure(figsize=(8,8))
-plt.xlim(0,T)
-plt.ylim(0,2.)
-plt.xlabel('Time')
+    fig = plt.figure(figsize=(16,16))
 
-I_line, = plt.plot(ts, dtrw_hiv.Xs[0,:])
-V_line, = plt.plot(ts, dtrw_hiv.Xs[1,:])
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax1.set_xlim([0,T])
+    ax1.set_ylim([0,I_init])
+    ax1.set_xlabel('Time')
+    ax1.set_ylabel('Infected T-cells')
+    I_line, = ax1.plot(ts, dtrw_hiv.Xs[0,:], lw=2)
+    I_data, = ax1.plot(cells[:,0], cells[:,1], 'o', markersize=10)
+    
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax2.set_xlim([0,T])
+    ax2.set_ylim([0,V_init])
+    ax2.set_xlabel('Time')
+    ax2.set_ylabel('Virus')
+    V_line, = ax2.plot(ts, dtrw_hiv.Xs[1,:], lw=2)
+    V_data, = ax2.plot(rna[:,0], rna[:,1], 'o', markersize=10)
 
-I_line_anom, = plt.plot(ts, dtrw_hiv_anom.Xs[0,:], 'b--')
-V_line_anom, = plt.plot(ts, dtrw_hiv_anom.Xs[1,:], 'g--')
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax3.set_xlim([0,T])
+    ax3.set_ylim([0,I_init])
+    ax3.set_xlabel('Time')
+    ax3.set_ylabel('Infected T-cells')
+    I_line_log, = ax3.semilogy(ts, dtrw_hiv.Xs[0,:], lw=2)
+    I_data_log, = ax3.semilogy(cells[:,0], cells[:,1], 'o', markersize=10)
+    
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax4.set_xlim([0,T])
+    ax4.set_ylim([0,V_init])
+    ax4.set_xlabel('Time')
+    ax4.set_ylabel('Virus')
+    V_line_log, = ax4.semilogy(ts, dtrw_hiv.Xs[1,:], lw=2)
+    V_data_log, = ax4.semilogy(rna[:,0], rna[:,1], 'o', markersize=10)
 
-plt.legend([I_line, V_line, I_line_anom, V_line_anom], ['Infected, Markovian model (alpha=1.0)', 'Virus, Markovian model (alpha=1.0)', 'Infected, anomalous model (alpha=0.8)', 'Virus, anomalous model (alpha=0.8)'])
-plt.title('HIV viral clearance model, anomalous vs Markovian')
-plt.xlabel('Time')
-plt.ylabel('Normalised cell concentration')
-plt.show()
+    fig.suptitle('Patient {0}, d_I={1} d_V={2} burst={3} alpha={4}'.format(pat, fit[0], fit[1], fit[2], fit[3]))
+    pp.savefig()
+    #plt.show()
 
+pp.close()
