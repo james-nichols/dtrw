@@ -43,8 +43,8 @@ class DTRW_HIV(DTRW_compartment):
     
     def creation_flux(self, n):
         return np.array([(1.0 - self.eff) * self.k * self.T_cells * self.Xs[1,n] * self.dT, 
-                         self.Xs[0,n] * self.burst * self.dT])
-                         #self.removal_flux_anomalous(n)[0] * self.burst * self.dT])
+                         self.removal_flux_anomalous(n)[0] * self.burst])
+                         #self.Xs[0,n] * self.burst * self.dT])
 
     def anomalous_rates(self, n):
         return np.array([pow(self.delta_I, self.alpha), 0.])
@@ -72,8 +72,8 @@ def produce_soln(params, k, T_cells, I_init, V_init, eff, cells, virus, num_ts):
     print rna[:,1]
     print np.interp(rna[:,0], t, dtrw_anom.Xs[1,:])
 
-    return np.append(cells[:,1] - np.interp(cells[:,0], t, dtrw_anom.Xs[0,:]), \
-                     rna[:,1] - np.interp(rna[:,0], t, dtrw_anom.Xs[1,:]))
+    return np.append(np.log(cells[:,1]) - np.log(np.interp(cells[:,0], t, dtrw_anom.Xs[0,:])), \
+                     np.log(rna[:,1]) - np.log(np.interp(rna[:,0], t, dtrw_anom.Xs[1,:])))
 
 
 data_dirs = ['Perelson1997Nature/Cells', 'Perelson1997Nature/DNA', 'Perelson1997Nature/RNA']
@@ -107,10 +107,10 @@ for pat in common_patients:
     k = 2.4e-5
     T_cells = 1000.
     eff = 1.0
-    delta_I = 0.7
+    delta_I = 0.2
     delta_V = 5.4
-    burst = 10. # This "Varies" according to Perelson '93 
-    alpha = 0.8 
+    burst = 100. # This "Varies" according to Perelson '93 
+    alpha = 0.9
     
     init_params = [delta_I, delta_V, burst, alpha]
     fit = scipy.optimize.leastsq(produce_soln, init_params, args=(k, T_cells, I_init, V_init, eff, cells, rna, 1e4))
@@ -126,33 +126,33 @@ for pat in common_patients:
     fig = plt.figure(figsize=(16,16))
 
     ax1 = fig.add_subplot(2, 2, 1)
-    ax1.set_xlim([0,T])
-    ax1.set_ylim([0,I_init])
-    ax1.set_xlabel('Time')
+    ax1.set_xlim([0,T*1.05])
+    ax1.set_ylim([0,I_init*1.1])
+    ax1.set_xlabel('Days')
     ax1.set_ylabel('Infected T-cells')
     I_line, = ax1.plot(ts, dtrw_hiv.Xs[0,:], lw=2)
     I_data, = ax1.plot(cells[:,0], cells[:,1], 'o', markersize=10)
     
     ax2 = fig.add_subplot(2, 2, 2)
-    ax2.set_xlim([0,T])
-    ax2.set_ylim([0,V_init])
-    ax2.set_xlabel('Time')
+    ax2.set_xlim([0,T*1.05])
+    ax2.set_ylim([0,V_init*1.1])
+    ax2.set_xlabel('Days')
     ax2.set_ylabel('Virus')
     V_line, = ax2.plot(ts, dtrw_hiv.Xs[1,:], lw=2)
     V_data, = ax2.plot(rna[:,0], rna[:,1], 'o', markersize=10)
 
     ax3 = fig.add_subplot(2, 2, 3)
-    ax3.set_xlim([0,T])
-    ax3.set_ylim([0,I_init])
-    ax3.set_xlabel('Time')
+    ax3.set_xlim([0,T*1.05])
+    ax3.set_ylim([0,I_init*1.1])
+    ax3.set_xlabel('Days')
     ax3.set_ylabel('Infected T-cells')
     I_line_log, = ax3.semilogy(ts, dtrw_hiv.Xs[0,:], lw=2)
     I_data_log, = ax3.semilogy(cells[:,0], cells[:,1], 'o', markersize=10)
     
     ax4 = fig.add_subplot(2, 2, 4)
-    ax4.set_xlim([0,T])
-    ax4.set_ylim([0,V_init])
-    ax4.set_xlabel('Time')
+    ax4.set_xlim([0,T*1.05])
+    ax4.set_ylim([0,V_init*1.1])
+    ax4.set_xlabel('Days')
     ax4.set_ylabel('Virus')
     V_line_log, = ax4.semilogy(ts, dtrw_hiv.Xs[1,:], lw=2)
     V_data_log, = ax4.semilogy(rna[:,0], rna[:,1], 'o', markersize=10)
