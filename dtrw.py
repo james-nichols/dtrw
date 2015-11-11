@@ -47,12 +47,12 @@ class BC_Dirichelet(BC):
         self.data = data
 
     def apply_BCs(self, next_X, flux, r, dtrw):
-        if self.data[0].shape != next_X[:,0].shape and self.data[0].shape:
-            raise Exception('Boundary conditions are incorrect shape, BC data is ' + str(self.data[0].shape) + ' Sol\'n is ' + str(next_X[:,0].shape))
+        #if self.data[0].shape != next_X[:,0].shape and self.data[0].shape:
+        #    raise Exception('Boundary conditions are incorrect shape, BC data is ' + str(self.data[0].shape) + ' Sol\'n is ' + str(next_X[:,0].shape))
 
         next_X[:,0] = self.data[0]
         if len(self.data) > 1: 
-            #next_X[:,-1] = self.data[1]
+            next_X[:,-1] = self.data[1]
             if next_X.shape[0] > 1:
                 next_X[0,:] = self.data[2]
                 next_X[-1,:] = self.data[3]
