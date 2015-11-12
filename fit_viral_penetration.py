@@ -26,7 +26,7 @@ def append_string_as_float(array, item):
         array = np.append(array, np.nan)
     return array
 
-def produce_soln(params, T, L, dX, x_fit, y_fit):
+def produce_subdiff_soln(params, T, L, dX):
     
     D_alpha, alpha, LHS = params
 
@@ -37,53 +37,43 @@ def produce_soln(params, T, L, dX, x_fit, y_fit):
     dT = T / N
 
     # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
-    r = dT / (dX * dX / (2.0 * D_alpha))
+    r = pow(dT, alpha) / (dX * dX / (2.0 * D_alpha))
     X_init = np.zeros(np.floor(L / dX))
     
-    print "Params: ", D_alpha, alpha, LHS, " N =", N,
-    
-    dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, r = r, history_length=N, boundary_condition=BC_Dirichelet([LHS, 0.0]))
+    print 'N:', N, 'r:', r, 
+    dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, r = r, history_length=N, boundary_condition=BC_Dirichelet_LHS([LHS]))
     dtrw_sub.solve_all_steps()
     
-    interp = scipy.interpolate.interp1d(np.arange(0., L, dX), dtrw_sub.Xs[0][:,:,-1])
-    print "Square err:", ((interp(x_fit).flatten() - y_fit) * (interp(x_fit).flatten() - y_fit)).sum()
-    
-    fit = (interp(x_fit).flatten())
-    goal = (y_fit)
+    return dtrw_sub.Xs[0][:,:,-1]
 
-    #return ((interp(x_fit).flatten() - y_fit) * (interp(x_fit).flatten() - y_fit)).sum()
-    return ((fit - goal) * (fit - goal)).sum()
 
-def produce_diff_soln(params, T, L, dX, x_fit, y_fit):
+def produce_diff_soln(params, T, L, dX, xs):
     
     D_alpha, LHS = params
+    D_alpha = max(D_alpha, 0.0)
 
-    dT_pre = dX * dX / (2.0 * D_alpha)
-    N = int(math.ceil(T / dT_pre))
+    return LHS * (1.0 - scipy.special.erf(xs / math.sqrt(4. * D_alpha * T)))
 
-    dT = T / N
+def lsq_subdiff(params, T, L, dX, x_fit, y_fit):
 
-    # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
-    r = dT / (dX * dX / (2.0 * D_alpha))
-
-    X_init = np.zeros(np.floor(L / dX))
+    print "Subdiff params: ", params[0], params[1], params[2],
+    soln = produce_subdiff_soln(params, T, L, dX)
+    interp = scipy.interpolate.interp1d(np.arange(0., L, dX), soln)
     
-    print "Params: ", D_alpha, LHS, " N =", N,
-    
-    dtrw = DTRW_diffusive(X_init, N, r, history_length=N, boundary_condition=BC_Dirichelet([LHS, 0.0]))
-    dtrw.solve_all_steps()
-    
-    interp = scipy.interpolate.interp1d(np.arange(0., L, dX), dtrw.Xs[0][:,:,-1])
-    print "Square err:", ((interp(x_fit).flatten() - y_fit) * (interp(x_fit).flatten() - y_fit)).sum()
-    return ((interp(x_fit).flatten() - y_fit) * (interp(x_fit).flatten() - y_fit)).sum()
-
     fit = np.log(interp(x_fit).flatten())
     goal = np.log(y_fit)
+    sq_err = ((fit - goal) * (fit - goal)).sum()
+    print "Square err:", sq_err
+    return sq_err
 
-    #return ((interp(x_fit).flatten() - y_fit) * (interp(x_fit).flatten() - y_fit)).sum()
-    return ((fit - goal) * (fit - goal)).sum()
 
+def lsq_diff(params, T, L, dX, x_fit, y_fit):
 
+    fit = (produce_diff_soln(params, T, L, dX, x_fit))
+    goal = np.log(y_fit)
+    sq_err = np.log((fit - goal) * (fit - goal)).sum()
+
+    return sq_err
 
 labels = []
 
@@ -115,63 +105,42 @@ bin_cent = (depth_bins[1:]+depth_bins[:-1])/2.0
 
 T = 10.0
 L = nz_depth.max()
-dX = L / 50.0
+dX = L / 100.0
 
 D_alpha = 1.0
 alpha = 0.7
 init_params = [D_alpha, alpha, depth_hist[0]]
 
 #fit = scipy.optimize.leastsq(produce_soln, init_params, args=(T, L, dX, (depth_bins[1:]+depth_bins[:-1])/2.0, depth_hist), options={'disp': True})
-fit = scipy.optimize.fmin_slsqp(produce_soln, init_params, args=(T, L, dX, bin_cent, depth_hist), \
-                                bounds=[(0.0, 100.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-5, acc=1.0e-9)
+subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, init_params, args=(T, L, dX, bin_cent, depth_hist), \
+                                bounds=[(0.0, 10.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-9)
 
 diff_init_params = [2.0*D_alpha, depth_hist[0]]
-diff_fit = scipy.optimize.fmin_slsqp(produce_diff_soln, diff_init_params, args=(T, L, dX, bin_cent, depth_hist), \
-                                bounds=[(0.0, 100.0), (0.0, 10.0)], epsilon = 1.0e-5, acc=1.0e-9)
+diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, L, dX, bin_cent, depth_hist), \
+                                bounds=[(0.0, np.Inf), (0.0, np.Inf)], epsilon = 1.0e-8, acc=1.0e-9)
 
 
-D_alpha, alpha, LHS = fit
-
-dT = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
-N = int(math.floor(T / dT))
-# Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
-r = dT / (dX * dX / (2.0 * D_alpha))
-X_init = np.zeros(np.floor(L / dX))
 xs = np.arange(0.0, L, dX)
+dtrw_sub_soln = produce_subdiff_soln(subdiff_fit, T, L, dX)
+diff_analytic_soln = produce_diff_soln(diff_fit, T, L, dX, xs) 
 
-dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length=N, boundary_condition=BC_Dirichelet([LHS, 0.0]))
-dtrw_sub.solve_all_steps()
+print 'Subdiffusion fit parameters:', subdiff_fit
+print 'Diffusion fit parameters:', diff_fit
 
 slope, offset = np.linalg.lstsq(np.vstack([bin_cent, np.ones(len(bin_cent))]).T, np.log(depth_hist).T)[0]
 exp_fit = np.exp(offset + xs * slope)
- 
-D_alpha, LHS = diff_fit
-
-dT = dX * dX / (2.0 * D_alpha)
-N = int(math.floor(T / dT))
-
-# Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
-r = dT / (dX * dX / (2.0 * D_alpha))
-X_init = np.zeros(np.floor(L / dX))
-    
-dtrw = DTRW_diffusive(X_init, N, r, history_length=N, boundary_condition=BC_Dirichelet([LHS, 0.0]))
-dtrw.solve_all_steps()
-
-diff_analytic_soln = LHS * (1.0 - scipy.special.erf(xs / math.sqrt(4. * D_alpha * T)))
     
 fig = plt.figure(figsize=(16,8))
 ax1 = fig.add_subplot(1, 2, 1)
 bar1 = ax1.bar(bin_cent, depth_hist)
-line1, = ax1.plot(xs, dtrw_sub.Xs[0][:,:,-1].T, 'r.-')
-line2, = ax1.plot(xs, dtrw.Xs[0][:,:,-1].T, 'g.-')
-line4, = ax1.plot(xs, diff_analytic_soln, 'gx')
+line1, = ax1.plot(xs, dtrw_sub_soln.T, 'r.-')
+line2, = ax1.plot(xs, diff_analytic_soln, 'g.-')
 line3, = ax1.plot(xs, exp_fit, 'b')
 
 ax2 = fig.add_subplot(1, 2, 2)
 ax2.semilogy(bin_cent, depth_hist, 'o')
-ax2.semilogy(xs, dtrw_sub.Xs[0][:,:,-1].T, 'r.-')
-ax2.semilogy(xs, dtrw.Xs[0][:,:,-1].T, 'g.-')
-ax2.semilogy(xs, diff_analytic_soln, 'gx')
+ax2.semilogy(xs, dtrw_sub_soln.T, 'r.-')
+ax2.semilogy(xs, diff_analytic_soln, 'g.-')
 ax2.semilogy(xs, exp_fit, 'b')
 
 plt.legend([bar1, line1, line2, line3], ["Viral Penetration Hist", "Subdiffusion fit", "Diffusion fit", "Exponential fit"])
