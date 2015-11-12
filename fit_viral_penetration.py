@@ -69,9 +69,9 @@ def lsq_subdiff(params, T, L, dX, x_fit, y_fit):
 
 def lsq_diff(params, T, L, dX, x_fit, y_fit):
 
-    fit = (produce_diff_soln(params, T, L, dX, x_fit))
+    fit = np.log(produce_diff_soln(params, T, L, dX, x_fit))
     goal = np.log(y_fit)
-    sq_err = np.log((fit - goal) * (fit - goal)).sum()
+    sq_err = ((fit - goal) * (fit - goal)).sum()
 
     return sq_err
 
@@ -113,7 +113,7 @@ init_params = [D_alpha, alpha, depth_hist[0]]
 
 #fit = scipy.optimize.leastsq(produce_soln, init_params, args=(T, L, dX, (depth_bins[1:]+depth_bins[:-1])/2.0, depth_hist), options={'disp': True})
 subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, init_params, args=(T, L, dX, bin_cent, depth_hist), \
-                                bounds=[(0.0, 10.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-9)
+                                bounds=[(0.0, 30.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-9)
 
 diff_init_params = [2.0*D_alpha, depth_hist[0]]
 diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, L, dX, bin_cent, depth_hist), \
