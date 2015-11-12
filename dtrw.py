@@ -57,6 +57,13 @@ class BC_Dirichelet(BC):
                 next_X[0,:] = self.data[2]
                 next_X[-1,:] = self.data[3]
 
+class BC_Dirichelet_LHS(BC):
+    def __init__(self, data):
+        self.data = data
+
+    def apply_BCs(self, next_X, flux, r, dtrw):
+        next_X[:,0] = self.data[0]
+
 class BC_Fedotov(BC):
 
     def __init__(self, alpha, constant, right):
