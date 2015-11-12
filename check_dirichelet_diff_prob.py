@@ -37,14 +37,14 @@ for l in n_points:
         
     print l, N, r
 
-    dtrw = DTRW_diffusive(X_init, N, r, history_length=N, boundary_condition=BC_Dirichelet([LHS, 0.0]))
+    dtrw = DTRW_diffusive(X_init, N, r, history_length=N, boundary_condition=BC_Dirichelet_LHS([LHS]))
     dtrw.solve_all_steps()
 
     diff_analytic_soln = LHS * (1.0 - scipy.special.erf(xs / math.sqrt(4. * D_alpha * T)))
         
-    ax1.plot(xs, dtrw.Xs[0][:,:,-1].T, 'g.-')
-    ax2.semilogy(xs, dtrw.Xs[0][:,:,-1].T, 'g.-')
+    ax1.plot(xs, dtrw.Xs[0][:,:,-1].T, '.-')
+    ax2.semilogy(xs, dtrw.Xs[0][:,:,-1].T, '.-')
     
-ax1.plot(xs, diff_analytic_soln, 'gx')
-ax2.semilogy(xs, diff_analytic_soln, 'gx')
+ax1.plot(xs, diff_analytic_soln, 'g')
+ax2.semilogy(xs, diff_analytic_soln, 'g')
 plt.show()
