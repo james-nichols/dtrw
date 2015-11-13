@@ -9,8 +9,10 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib import cm
+from matplotlib.backends.backend_pdf import PdfPages
 
 import pdb
+pp = PdfPages('Viral_Penetration_Plots.pdf')
 
 def append_string_as_int(array, item):
     try:
@@ -117,10 +119,13 @@ dX = L / 100.0
 D_alpha = 1.0
 alpha = 0.7
 init_params = [D_alpha, alpha, 1.0]
+# Last minimisation got close to: 17.8313421414 0.657650087016 0.740546304837
+#init_params = [17.8313421414, 0.657650087016, 0.740546304837]
+#subdiff_fit = init_params
 
 #fit = scipy.optimize.leastsq(produce_soln, init_params, args=(T, L, dX, (depth_bins[1:]+depth_bins[:-1])/2.0, depth_hist), options={'disp': True})
 subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
-                                bounds=[(0.0, 30.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-9)
+                                bounds=[(0.0, 30.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-6)
 
 diff_init_params = [2.0*D_alpha, 1.0]
 diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
@@ -133,7 +138,7 @@ diff_analytic_soln = produce_diff_soln(diff_fit, T, L, dX, xs)
 print 'Subdiffusion fit parameters:', subdiff_fit
 print 'Diffusion fit parameters:', diff_fit
 
-slope, offset = np.linalg.lstsq(np.vstack([bin_cent, np.ones(len(bin_cent))]).T, np.log(depth_hist).T)[0]
+slope, offset = np.linalg.lstsq(np.vstack([surv_func_x, np.ones(len(surv_func_x))]).T, np.log(surv_func_y).T)[0]
 exp_fit = np.exp(offset + xs * slope)
     
 fig = plt.figure(figsize=(16,8))
@@ -152,5 +157,10 @@ ax2.semilogy(xs, diff_analytic_soln, 'g.-')
 ax2.semilogy(xs, exp_fit, 'b')
 
 plt.legend([bar1, line1, line2, line3], ["Viral Penetration Hist", "Subdiffusion fit", "Diffusion fit", "Exponential fit"])
-plt.show()
+pp.savefig()
+#pp.attach_note("Subdiffusion Parameters: " + subdiff_fit)
+#pp.attach_note("Diffusion Parameters: " + diff_fit)
+pp.close()
+
+#plt.show()
 
