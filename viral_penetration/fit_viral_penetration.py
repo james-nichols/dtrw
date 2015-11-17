@@ -1,9 +1,15 @@
 #! /usr/bin/env python
 
+# Libraries are in parent directory
+import sys
+sys.path.append('../')
+
 import numpy as np
 import scipy
 import time, csv, math
 from dtrw import *
+# Local fit functions for a variety of scripts
+from fit_functions import *
 
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -27,72 +33,6 @@ def append_string_as_float(array, item):
     except ValueError:
         array = np.append(array, np.nan)
     return array
-
-def produce_subdiff_soln(params, T, L, dX):
-    
-    D_alpha, alpha, LHS = params
-
-    dT_pre = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
-    N = int(math.ceil(T / dT_pre))
-    
-    # Now find r to get an *exact* D_alpha
-    dT = T / N
-
-    # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
-    r = pow(dT, alpha) / (dX * dX / (2.0 * D_alpha))
-    X_init = np.zeros(np.ceil(L / dX)+1)
-    
-    print 'N:', N, 'r:', r, 
-    dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, r = r, history_length=N, boundary_condition=BC_Dirichelet_LHS([LHS]))
-    dtrw_sub.solve_all_steps()
-    
-    return dtrw_sub.Xs[0][:,:,-1]
-
-def produce_subdiff_soln_survival(params, T, L, dX):
-    
-    D_alpha, alpha, LHS = params
-
-    soln = produce_subdiff_soln(params, T, L, dX)
-    return 1.0 - np.array([np.trapz(soln.flatten()[:i], dx=dX) for i in range(1,soln.size+1)]) / np.trapz(soln.flatten(), dx=dX)
-
-def produce_diff_soln(params, T, L, dX, xs):
-    
-    D_alpha, LHS = params
-    D_alpha = max(D_alpha, 0.0)
-
-    return LHS * (1.0 - scipy.special.erf(xs / math.sqrt(4. * D_alpha * T)))
-
-def produce_diff_soln_survival(params, T, L, dX, xs):
-    
-    D_alpha, LHS = params
-    D_alpha = max(D_alpha, 0.0)
-    
-    integral = LHS * (xs - xs * scipy.special.erf(xs / math.sqrt(4. * D_alpha * T)) - math.sqrt(4. * D_alpha * T / math.pi) * (np.exp(-xs * xs / (4. * D_alpha * T)) - 1.))
-    full_integral = LHS * math.sqrt(4. * D_alpha * T / math.pi)
-    
-    return 1.0 - integral / full_integral 
-
-def lsq_subdiff(params, T, L, dX, x_fit, y_fit):
-
-    print "Subdiff params: ", params[0], params[1], params[2],
-    #soln = produce_subdiff_soln(params, T, L, dX)
-    # If we're fitting to a survival function, we must fit the partial integral of the solution...
-    soln = produce_subdiff_soln_survival(params, T, L, dX)
-
-    interp = scipy.interpolate.interp1d(np.arange(0., L+dX, dX), soln)
-    
-    fit = (interp(x_fit).flatten())
-    goal = (y_fit)
-    sq_err = ((fit - goal) * (fit - goal)).sum()
-    print "Square err:", sq_err
-    return sq_err
-
-def lsq_diff(params, T, L, dX, x_fit, y_fit):
-    fit = (produce_diff_soln_survival(params, T, L, dX, x_fit))
-    goal = (y_fit)
-    sq_err = ((fit - goal) * (fit - goal)).sum()
-
-    return sq_err
 
 labels = []
 
@@ -135,10 +75,9 @@ dX = L / 100.0
 
 D_alpha = 1.0
 alpha = 0.7
-init_params = [D_alpha, alpha, 1.0]
 # Last minimisation got close to:
 #diff_fit = [ 5.28210775, 0.95847065]
-#subdiff_fit = [ 15.07811124, 0.55, 0.99997347]
+subdiff_fit = [ 15.07811124, 0.55, 0.99997347]
 
 diff_init_params = [2.0*D_alpha, 1.0]
 diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
@@ -146,9 +85,11 @@ diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, L, dX,
 
 print 'Diffusion fit parameters:', diff_fit
 
-fit = scipy.optimize.leastsq(produce_soln, init_params, args=(T, L, dX, (depth_bins[1:]+depth_bins[:-1])/2.0, depth_hist), options={'disp': True})
-subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
-                                bounds=[(0.0, 30.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-6)
+subdiff_init_params = [D_alpha, alpha, 1.0]
+#subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
+#                                bounds=[(0.0, 30.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-6)
+
+print 'Subdiffusion fit parameters:', subdiff_fit
 
 xs = np.arange(0.0, L+dX, dX)
 dtrw_sub_soln = produce_subdiff_soln(subdiff_fit, T, L, dX)
@@ -156,7 +97,6 @@ diff_analytic_soln = produce_diff_soln(diff_fit, T, L, dX, xs)
 dtrw_sub_soln_survival = produce_subdiff_soln_survival(subdiff_fit, T, L, dX)
 diff_analytic_soln_survival = produce_diff_soln_survival(diff_fit, T, L, dX, xs) 
 
-print 'Subdiffusion fit parameters:', subdiff_fit
 
 slope, offset = np.linalg.lstsq(np.vstack([surv_func_x, np.ones(len(surv_func_x))]).T, np.log(surv_func_y).T)[0]
 exp_fit = np.exp(offset + xs * slope)
@@ -176,7 +116,7 @@ ax2.semilogy(xs, diff_analytic_soln_survival, 'g.-')
 ax2.semilogy(xs, exp_fit, 'b')
 ax2.set_title('Logarithm of survival function vs fits')
 
-plt.legend([bar1, line1, line2, line3], ["Viral survival func", "Subdiffusion fit, alpha={0}, D_alpha={1}".format(subdiff_fit[1],subdiff_fit[0]), "Diffusion fit, D_alpha={0}".subdiff_fit[0], "Exponential fit"])
+plt.legend([bar1, line1, line2, line3], ["Viral survival func", "Subdiffusion fit, alpha={0}, D_alpha={1}".format(subdiff_fit[1],subdiff_fit[0]), "Diffusion fit, D_alpha={0}".format(subdiff_fit[0]), "Exponential fit"])
 pp.savefig()
 #pp.attach_note("Subdiffusion Parameters: " + subdiff_fit)
 #pp.attach_note("Diffusion Parameters: " + diff_fit)
