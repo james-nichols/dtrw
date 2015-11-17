@@ -35,7 +35,8 @@ def append_string_as_float(array, item):
 
 def produce_subdiff_soln(params, T, L, dX):
     
-    D_alpha, alpha, LHS = params
+    D_alpha, alpha = params
+    LHS = 1.0
 
     dT_pre = pow((dX * dX / (2.0 * D_alpha)), 1./alpha)
     N = int(math.ceil(T / dT_pre))
@@ -45,7 +46,8 @@ def produce_subdiff_soln(params, T, L, dX):
 
     # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
     r = pow(dT, alpha) / (dX * dX / (2.0 * D_alpha))
-    X_init = np.zeros(np.ceil(L / dX)+1)
+    xs = np.arange(0.0, L+dX, dX)
+    X_init = np.zeros(xs.shape)
     
     print 'N:', N, 'r:', r, 
     dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, r = r, history_length=N, boundary_condition=BC_Dirichelet_LHS([LHS]))
@@ -55,22 +57,25 @@ def produce_subdiff_soln(params, T, L, dX):
 
 def produce_subdiff_soln_survival(params, T, L, dX):
     
-    D_alpha, alpha, LHS = params
+    D_alpha, alpha = params
+    LHS = 1.0
 
     soln = produce_subdiff_soln(params, T, L, dX)
     return 1.0 - np.array([np.trapz(soln.flatten()[:i], dx=dX) for i in range(1,soln.size+1)]) / np.trapz(soln.flatten(), dx=dX)
 
 def produce_diff_soln(params, T, L, dX, xs):
     
-    D_alpha, LHS = params
+    D_alpha = params
     D_alpha = max(D_alpha, 0.0)
+    LHS = 1.0
 
     return LHS * (1.0 - scipy.special.erf(xs / math.sqrt(4. * D_alpha * T)))
 
 def produce_diff_soln_survival(params, T, L, dX, xs):
     
-    D_alpha, LHS = params
+    D_alpha = params
     D_alpha = max(D_alpha, 0.0)
+    LHS = 1.0
     
     integral = LHS * (xs - xs * scipy.special.erf(xs / math.sqrt(4. * D_alpha * T)) - math.sqrt(4. * D_alpha * T / math.pi) * (np.exp(-xs * xs / (4. * D_alpha * T)) - 1.))
     full_integral = LHS * math.sqrt(4. * D_alpha * T / math.pi)
@@ -79,7 +84,7 @@ def produce_diff_soln_survival(params, T, L, dX, xs):
 
 def lsq_subdiff(params, T, L, dX, x_fit, y_fit):
 
-    print "Subdiff params: ", params[0], params[1], params[2],
+    print "Subdiff params: ", params[0], params[1]
     #soln = produce_subdiff_soln(params, T, L, dX)
     # If we're fitting to a survival function, we must fit the partial integral of the solution...
     soln = produce_subdiff_soln_survival(params, T, L, dX)
