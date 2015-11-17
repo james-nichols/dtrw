@@ -77,7 +77,7 @@ D_alpha = 1.0
 alpha = 0.7
 # Last minimisation got close to:
 #diff_fit = [ 5.28210775, 0.95847065]
-subdiff_fit = [ 15.07811124, 0.55, 0.99997347]
+#subdiff_fit = [ 15.07811124, 0.55, 0.99997347]
 
 diff_init_params = [2.0*D_alpha, 1.0]
 diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
@@ -86,8 +86,8 @@ diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, L, dX,
 print 'Diffusion fit parameters:', diff_fit
 
 subdiff_init_params = [D_alpha, alpha, 1.0]
-#subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
-#                                bounds=[(0.0, 30.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-6)
+subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, L, dX, surv_func_x, surv_func_y), \
+                                bounds=[(0.0, 30.0),(0.55, 1.0), (0.0, 10.0)], epsilon = 1.0e-8, acc=1.0e-6)
 
 print 'Subdiffusion fit parameters:', subdiff_fit
 
@@ -116,7 +116,7 @@ ax2.semilogy(xs, diff_analytic_soln_survival, 'g.-')
 ax2.semilogy(xs, exp_fit, 'b')
 ax2.set_title('Logarithm of survival function vs fits')
 
-plt.legend([bar1, line1, line2, line3], ["Viral survival func", "Subdiffusion fit, alpha={0}, D_alpha={1}".format(subdiff_fit[1],subdiff_fit[0]), "Diffusion fit, D_alpha={0}".format(subdiff_fit[0]), "Exponential fit"])
+plt.legend([bar1, line1, line2, line3], ["Viral survival func", "Subdiffusion fit, alpha={0}, D_alpha={1}".format(subdiff_fit[1],subdiff_fit[0]), "Diffusion fit, D_alpha={0}".format(diff_fit[0]), "Exponential fit"], loc=3)
 pp.savefig()
 #pp.attach_note("Subdiffusion Parameters: " + subdiff_fit)
 #pp.attach_note("Diffusion Parameters: " + diff_fit)
