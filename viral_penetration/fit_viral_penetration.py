@@ -87,7 +87,7 @@ print 'Diffusion fit parameters:', diff_fit
 
 subdiff_init_params = [D_alpha, alpha]
 subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, 2.0 * L, dX, surv_func_x, surv_func_y), \
-                                bounds=[(0.0, 50.0),(0.55, 1.0)], epsilon = 1.0e-8, acc=1.0e-6)
+                                bounds=[(0.0, 50.0),(0.4, 1.0)], epsilon = 1.0e-8, acc=1.0e-6)
 
 print 'Subdiffusion fit parameters:', subdiff_fit
 
