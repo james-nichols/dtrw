@@ -546,6 +546,7 @@ class DTRW_compartment(object):
         #self.creation_rates = np.zeros([self.n_species, 1])
 
         self.Ks = [None] * self.n_species
+        self.alphas = [None] * self.n_species
 
         self.Xs = np.zeros([self.n_species, self.N])
         self.Xs[:,0] = X_inits
@@ -592,8 +593,10 @@ class DTRW_compartment(object):
         """ Defines all outward anomalous removal processes """
         flux = np.zeros(self.n_species)
         for i in range(self.n_species):
-            if self.Ks[i] != None:
-                flux[i] = (1. - np.exp(-self.dT * self.anomalous_rates(n)[i])) * (self.Xs[i,:n+1] * self.survival_probs[i,:n+1] * self.Ks[i][1:n+2][::-1]).sum()
+            if self.Ks[i] != None and self.alphas[i] != None:
+                # Two choices: anomalous rate is a real "rate" as the first choice, or a probability, as the second.
+                #flux[i] = (1. - np.exp(-pow(self.dT, self.alphas[i]) * self.anomalous_rates(n)[i])) * (self.Xs[i,:n+1] * self.survival_probs[i,:n+1] * self.Ks[i][1:n+2][::-1]).sum()
+                flux[i] =  pow(self.dT, self.alphas[i]) * self.anomalous_rates(n)[i] * (self.Xs[i,:n+1] * self.survival_probs[i,:n+1] * self.Ks[i][1:n+2][::-1]).sum()
         return flux 
 
     def time_step(self):
@@ -630,7 +633,8 @@ class DTRW_SIR(DTRW_compartment):
         self.gamma = gamma
         self.mu = mu
         self.alpha = alpha
-
+        
+        self.alphas[1] = alpha
         self.Ks[1] = calc_sibuya_kernel(self.N+1, self.alpha)
     
     def creation_flux(self, n):
