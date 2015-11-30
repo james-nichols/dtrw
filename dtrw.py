@@ -545,9 +545,9 @@ class DTRW_compartment(object):
         #self.removal_rates = np.zeros([self.n_species, 1])
         #self.creation_rates = np.zeros([self.n_species, 1])
 
-        self.Ks = [None] * self.n_species
         self.alphas = [None] * self.n_species
-
+        self.Ks = [None] * self.n_species
+    
         self.Xs = np.zeros([self.n_species, self.N])
         self.Xs[:,0] = X_inits
  
