@@ -72,19 +72,19 @@ surv_func_y = 1.0 - np.cumsum(surv_func[:,1]) / surv_func[:,1].sum()   #np.array
 #surv_func_x = np.insert(surv_func_x[:-1], 0, 0.0)
 #surv_func_y = np.insert(surv_func_y[:-1], 0, 1.0)
 
+# Ignores the first point (=1.0 microns) as there is some dubiosness in the results.
 surv_func = scipy.stats.itemfreq(nz_depth-1.0) 
+surv_func[0,1] = 0
 surv_func_x2 = surv_func[:,0]
 surv_func_y2 = 1.0 - np.cumsum(surv_func[:,1]) / surv_func[:,1].sum()   #np.array([np.cumsum(surv_func[i:,1]) for i in range(surv_func[:,1].size)])
 
-plt.plot(surv_func_x, surv_func_y)
-plt.plot(surv_func_x2, surv_func_y2)
 
 T = 10.0
 L = nz_depth.max()
 dX = L / 100.0
 
 D_alpha = 17.0
-alpha = 0.7
+alpha = 0.6
 # Last minimisation got close to:
 #diff_fit = [ 5.28210775, 0.95847065]
 #subdiff_fit = [ 15.07811124, 0.55, 0.99997347]
@@ -95,19 +95,18 @@ xs = np.arange(0.0, L+dX, dX)
 #
 diff_init_params = [D_alpha]
 diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, surv_func_x, surv_func_y), \
-                                bounds=[(0.0, np.Inf)], epsilon = 1.0e-8, acc=1.0e-9)
+                                bounds=[(0.0, np.Inf)], epsilon = 1.0e-8, acc=1.0e-6)
 print 'Diffusion fit parameters:', diff_fit
-diff_analytic_soln_survival = produce_diff_soln_survival(diff_fit, T, xs) 
-diff_analytic_soln = produce_diff_soln(diff_fit, T, xs) 
+diff_analytic_soln_survival = produce_diff_soln_survival(diff_fit, T, xs)
+diff_analytic_soln = produce_diff_soln(diff_fit, T, xs)
 
 #
 # FIT Subdiffusion model - numerical (DTRW algorithm)
 #
-history_truncation = 1000
+history_truncation = 200
 subdiff_init_params = [D_alpha, alpha]
 subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, 4.0 * L, dX, surv_func_x, surv_func_y, history_truncation), \
                                 bounds=[(0.0, 50.0),(0.48, 1.0)], epsilon = 1.0e-8, acc=1.0e-6)
-subdiff_fit = [16.99999094, 0.69999606]
 print 'Subdiffusion fit parameters:', subdiff_fit
 
 dtrw_sub_soln = produce_subdiff_soln(subdiff_fit, T, 4.0*L, dX)
