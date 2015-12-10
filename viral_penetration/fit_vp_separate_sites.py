@@ -89,14 +89,15 @@ depth_hist, depth_bins = np.histogram(nz_depth, num_depth_bins, density=True)
 bin_cent = (depth_bins[1:]+depth_bins[:-1])/2.0
 
 # Depth based survival function - sometimes a better function to fit to, and we certainly don't lose resolution
-surv_func = scipy.stats.itemfreq(nz_depth)
+surv_func = scipy.stats.itemfreq(nz_depth-1.0)
 surv_func_x = surv_func[:,0]
-surv_func_y = 1.0 - np.cumsum(surv_func[:,1]) / surv_func[:,1].sum()   #np.array([np.cumsum(surv_func[i:,1]) for i in range(surv_func[:,1].size)])
-surv_func_x = np.insert(surv_func_x[:-1], 0, 0.0)
-surv_func_y = np.insert(surv_func_y[:-1], 0, 1.0)
+surv_func_y = 1.0 - np.insert(np.cumsum(surv_func[:,1]), 0, 0.0)[:-1] / surv_func[:,1].sum() 
+if surv_func_x[0] != 0.0:
+    surv_func_x = np.insert(surv_func_x, 0, 0.0)
+    surv_func_y = np.insert(surv_func_y, 0, 1.0)
 
 T = 1.0
-L = nz_depth.max()
+L = surv_func_x.max() #nz_depth.max()
 dX = L / 100.0
 
 D_alpha = 20.0
@@ -121,15 +122,16 @@ diff_analytic_soln = produce_diff_soln(diff_fit, T, xs)
 #
 # FIT Subdiffusion model - numerical (DTRW algorithm)
 #
-history_truncation = 500
-subdiff_init_params = [D_alpha, alpha]
-subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, 4.0 * L, dX, surv_func_x, surv_func_y, history_truncation), \
-                                bounds=[(0.0, 50.0),(0.48, 1.0)], epsilon = 1.0e-3, acc=1.0e-6, full_output=True)
-subdiff_sq_err = subdiff_fit[1]
-subdiff_fit = subdiff_fit[0]
-print 'Subdiffusion fit parameters:', subdiff_fit
-dtrw_sub_soln = produce_subdiff_soln(subdiff_fit, T, 4.0*L, dX)
-dtrw_sub_soln_survival = produce_subdiff_soln_survival(subdiff_fit, T, 4.0*L, dX)
+#history_truncation = 0
+# New regime: start at diff parameter fit
+#subdiff_init_params = [diff_fit[0], alpha]
+#subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, 4.0 * L, dX, surv_func_x, surv_func_y, history_truncation), \
+#                                bounds=[(0.0, 50.0),(0.51, 1.0)], epsilon = 1.0e-3, acc=1.0e-6, full_output=True)
+#subdiff_sq_err = subdiff_fit[1]
+#subdiff_fit = subdiff_fit[0]
+#print 'Subdiffusion fit parameters:', subdiff_fit
+#dtrw_sub_soln = produce_subdiff_soln(subdiff_fit, T, 4.0*L, dX)
+#dtrw_sub_soln_survival = produce_subdiff_soln_survival(subdiff_fit, T, 4.0*L, dX)
 
 #
 # FIT Subdiffusion model - analytic
@@ -156,7 +158,7 @@ exp_fit = np.exp(offset + xs * slope)
 fig = plt.figure(figsize=(16,8))
 ax1 = fig.add_subplot(1, 2, 1)
 bar1, = ax1.plot(surv_func_x, surv_func_y, 'b.-')
-line1, = ax1.plot(xs, dtrw_sub_soln_survival.T[:xs.size], 'r.-')
+#line1, = ax1.plot(xs, dtrw_sub_soln_survival.T[:xs.size], 'r.-')
 line2, = ax1.plot(xs, anal_sub_soln_survival, 'y.-')
 line3, = ax1.plot(xs, diff_analytic_soln_survival, 'g.-')
 line4, = ax1.plot(xs, exp_fit, 'b')
@@ -164,13 +166,14 @@ ax1.set_title('Survival function vs fits, ' + site[0] + ', {0} virions'.format(s
 
 ax2 = fig.add_subplot(1, 2, 2)
 ax2.semilogy(surv_func_x, surv_func_y, 'b.-')
-ax2.semilogy(xs, dtrw_sub_soln_survival.T[:xs.size], 'r.-')
+#ax2.semilogy(xs, dtrw_sub_soln_survival.T[:xs.size], 'r.-')
 ax2.semilogy(xs, anal_sub_soln_survival, 'y.-')
 ax2.semilogy(xs, diff_analytic_soln_survival, 'g.-')
 ax2.semilogy(xs, exp_fit, 'b')
 ax2.set_title('Logarithm of survival function vs fits, ' + site[0] + ', {0} virions'.format(site[1]))
 
-plt.legend([bar1, line1, line2, line3, line4], ["Viral survival func", "Subdiffusion fit, alpha={0:.2f}, D_alpha={1:.2f}, sq_err={2:.4f}".format(subdiff_fit[1],subdiff_fit[0],subdiff_sq_err), \
+#plt.legend([bar1, line1, line2, line3, line4], ["Viral survival func", "Subdiffusion fit, alpha={0:.2f}, D_alpha={1:.2f}, sq_err={2:.4f}".format(subdiff_fit[1],subdiff_fit[0],subdiff_sq_err), \
+plt.legend([bar1, line2, line3, line4], ["Viral survival func", \
                                                                      "Analytic subdiff fit, alpha=1/2, D_alpha={0:.2f}, sq_err={1:.4f}".format(subdiff_anal_fit[0], subdiff_anal_sq_err), \
                                                                      "Diffusion fit, D_alpha={0:.2f}, sq_err={1:.2f}".format(diff_fit[0], diff_sq_err), "Exponential fit"], loc=3)
 pp.savefig()
