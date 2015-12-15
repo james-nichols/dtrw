@@ -66,8 +66,8 @@ with open(EDTA_data, 'rb') as csvfile:
 
 count = collections.Counter(image_index)
 
-image_yes = collections.Counter([image for image in image_index if EDTA == 'Y'])
-image_no = collections.Counter([image for image in image_index if EDTA == 'N'])
+image_yes = collections.Counter([image_index[i] for i in range(len(image_index)) if EDTA[i] == 'Y'])
+image_no = collections.Counter([image_index[i] for i in range(len(image_index)) if EDTA[i] == 'N'])
 
 # The number of sites we analyse...
 number_of_sites = 10
@@ -75,11 +75,11 @@ number_of_sites = 10
 sites = count.most_common(number_of_sites)
 sites_yes = image_yes.most_common(number_of_sites)
 sites_no = image_no.most_common(number_of_sites)
-
+pdb.set_trace()
 pp = PdfPages(output_pdf + '{0}.pdf'.format(sys.argv[2]))
 #for site in [sites_yes, sites_no]:
 #    for site in sites:
-if sys.argv[3] = 'Y':
+if sys.argv[3] == 'Y':
     site = sites_yes[int(sys.argv[2])]
 else:
     site = sites_no[int(sys.argv[2])]
