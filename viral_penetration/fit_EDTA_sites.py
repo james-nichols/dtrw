@@ -76,7 +76,7 @@ sites = count.most_common(number_of_sites)
 sites_yes = image_yes.most_common(number_of_sites)
 sites_no = image_no.most_common(number_of_sites)
 
-pp = PdfPages(output_pdf + '{0}.pdf'.format(sys.argv[1]))
+pp = PdfPages(output_pdf + '{0}.pdf'.format(sys.argv[2]))
 #for site in [sites_yes, sites_no]:
 #    for site in sites:
 if sys.argv[3] = 'Y':
