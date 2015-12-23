@@ -46,7 +46,7 @@ def produce_subdiff_analytic_soln(params, T, xs):
 
 def produce_subdiff_analytic_survival(params, T, xs):
     # Use meijer-G function to calculate subdiffusion for alpha = 1/2
-    integral = scipy.integrate.quad(lambda x: produce_subdiff_analytic_soln(params, T, x), 0., 2.*xs[-1])[0]
+    integral = scipy.integrate.quad(lambda x: produce_subdiff_analytic_soln(params, T, x), 0., 20.)[0]
     solver = np.vectorize(lambda y: scipy.integrate.quad(lambda x: produce_subdiff_analytic_soln(params, T, x), 0., y)[0])
     return 1.0 - solver(xs) / integral
 
