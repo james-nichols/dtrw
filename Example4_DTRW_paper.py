@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 import numpy as np
 import time
@@ -38,28 +38,28 @@ boundary_condition = BC_periodic()
 dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length=history_length, boltz_beta=boltz_beta, potential=potential, boundary_condition=boundary_condition)
 #dtrw.solve_all_steps()
 
-print "Solving DTRW for", N, "time steps to time", T, ". dT =", dT
+print("Solving DTRW for", N, "time steps to time", T, ". dT =", dT)
 
 dtrw_sub.solve_all_steps()
 
-np.save("Example4_results", dtrw_sub.X)
+np.save("Example4_results", dtrw_sub.Xs[0])
 
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,1)
-plt.ylim(dtrw_sub.X.min(), dtrw_sub.X.max())
+plt.ylim(dtrw_sub.Xs[0].min(), dtrw_sub.Xs[0].max())
 plt.xlabel('x')
 line1, = plt.plot([],[],'r-')
 #line2, = plt.plot([],[],'g-')
 
 def update(i, line1):
-    #line1.set_data(xs,dtrw.X[:,:,i])
-    line1.set_data(xs,dtrw_sub.X[:,:,i])
+    #line1.set_data(xs,dtrw.Xs[0][:,:,i])
+    line1.set_data(xs,dtrw_sub.Xs[0][:,:,i])
     return line1, 
 
 # call the animator. blit=True means only re-draw the parts that have changed.
-#anim = animation.FuncAnimation(fig, update, 
-#        frames=N, fargs=(line1,), interval=10)
+anim = animation.FuncAnimation(fig, update, 
+        frames=N, fargs=(line1,), interval=10)
 
-#anim.save('Example4.mp4', fps=24)
+anim.save('Example4.mp4', fps=24)
 #plt.show()
 

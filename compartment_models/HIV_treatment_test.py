@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -20,7 +20,7 @@ class DTRW_HIV(DTRW_compartment):
 
         if len(X_inits) != 2:
             # Error!
-            print "Need two initial points"
+            print("Need two initial points")
             raise SystemExit 
 
         super(DTRW_HIV, self).__init__(X_inits, T, dT)
@@ -68,7 +68,7 @@ dtrw_hiv_anom = DTRW_HIV(initial, T, dT, k, T_cells, eff, delta_I, delta_V, burs
 
 dtrw_hiv.solve_all_steps()
 dtrw_hiv_anom.solve_all_steps()
-pdb.set_trace()
+
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,T)
 plt.ylim(0,2.)

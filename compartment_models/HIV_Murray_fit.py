@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -27,7 +27,7 @@ class DTRW_HIV(DTRW_compartment):
 
         if len(X_inits) != 2:
             # Error!
-            print "Need two initial points"
+            print("Need two initial points")
             raise SystemExit 
 
         super(DTRW_HIV, self).__init__(X_inits, T, dT)
@@ -67,10 +67,10 @@ def produce_soln(params, k, T_cells, I_init, V_init, eff, virus, num_ts):
     dtrw_anom = DTRW_HIV([I_init, V_init], T, dT, k, T_cells, eff, delta_I, delta_V, burst, alpha)
     dtrw_anom.solve_all_steps()
    
-    print "Soln with params: ", delta_I, delta_V, burst, alpha
-    print virus[:,0]
-    print virus[:,1]
-    print np.interp(virus[:,0], t, dtrw_anom.Xs[1,:])
+    print("Soln with params: ", delta_I, delta_V, burst, alpha)
+    print(virus[:,0])
+    print(virus[:,1])
+    print(np.interp(virus[:,0], t, dtrw_anom.Xs[1,:]))
 
     return np.log(virus[:,1]) - np.log(np.interp(virus[:,0], t, dtrw_anom.Xs[1,:]))
 

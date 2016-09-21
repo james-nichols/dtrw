@@ -33,10 +33,10 @@ history_length = N
 dtrw = DTRW_subdiffusive(X_init, N, alpha, history_length)
 dtrw_Q = DTRW_subdiffusive(X_init, N, alpha, history_length)
 
-print dtrw.psi, dtrw.psi.sum()
-print dtrw.Phi
-print dtrw.K
-print "Solving for", N, "steps."
+print(dtrw.psi, dtrw.psi.sum())
+print(dtrw.Phi)
+print(dtrw.K)
+print("Solving for", N, "steps.")
 
 start = time.clock()
 dtrw.solve_all_steps()
@@ -44,7 +44,7 @@ mid = time.clock()
 dtrw_Q.solve_all_steps_with_Q()
 end = time.clock()
 
-print "Time for K method: ", mid - start, ", time for Q method: ", end - mid
+print("Time for K method: ", mid - start, ", time for Q method: ", end - mid)
 
 xs = np.linspace(0, 1, X_init.shape[0])
 ys = np.linspace(0, 1, X_init.shape[1])
@@ -116,7 +116,7 @@ exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentfr
 git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
-print "Saving animation to", file_name
+print("Saving animation to", file_name)
 
 anim.save(file_name, fps=24)
 plt.show()

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -25,7 +25,7 @@ class DTRW_HIV(DTRW_compartment):
 
         if len(X_inits) != 2:
             # Error!
-            print "Need two initial points"
+            print("Need two initial points")
             raise SystemExit 
 
         super(DTRW_HIV, self).__init__(X_inits, T, dT)
@@ -64,13 +64,13 @@ def produce_soln(params, k, T_cells, I_init, V_init, eff, cells, virus, num_ts):
     dtrw_anom = DTRW_HIV([I_init, V_init], T, dT, k, T_cells, eff, delta_I, delta_V, burst, alpha)
     dtrw_anom.solve_all_steps()
     
-    print "Soln with params: ", delta_I, delta_V, burst, alpha
-    print cells[:,0]
-    print cells[:,1]
-    print np.interp(cells[:,0], t, dtrw_anom.Xs[0,:])
-    print rna[:,0]
-    print rna[:,1]
-    print np.interp(rna[:,0], t, dtrw_anom.Xs[1,:])
+    print("Soln with params: ", delta_I, delta_V, burst, alpha)
+    print(cells[:,0])
+    print(cells[:,1])
+    print(np.interp(cells[:,0], t, dtrw_anom.Xs[0,:]))
+    print(rna[:,0])
+    print(rna[:,1])
+    print(np.interp(rna[:,0], t, dtrw_anom.Xs[1,:]))
 
     return np.append(np.log(cells[:,1]) - np.log(np.interp(cells[:,0], t, dtrw_anom.Xs[0,:])), \
                      np.log(rna[:,1]) - np.log(np.interp(rna[:,0], t, dtrw_anom.Xs[1,:])))
@@ -86,8 +86,8 @@ for data_dir in data_dirs:
     data_sub = []
     data_label_sub = []
     for data_file in data_files:
-        print data_file
-        pat_num = int(filter(str.isdigit, data_file))
+        print(data_file)
+        pat_num = int(list(filter(str.isdigit, data_file)))
         data_sub.append(np.loadtxt(data_dir + '/' + data_file))
         data_label_sub.append(pat_num)
 

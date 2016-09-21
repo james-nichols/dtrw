@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -54,7 +54,7 @@ EDTA_data = 'SMEG_Data/EctoCervixEDTABaLAngelafixed.csv'
 
 with open(EDTA_data, 'rb') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
-    labels = reader.next()
+    labels = next(reader)
     for row in reader:
         image_index.append(row[0])
         cervix.append(row[1])
@@ -124,7 +124,7 @@ diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, surv_f
         bounds=[(0.0, np.Inf)], epsilon = 1.0e-8, acc=1.0e-6, full_output=True)
 diff_sq_err = diff_fit[1]
 diff_fit = diff_fit[0]
-print 'Diffusion fit parameters:', diff_fit
+print('Diffusion fit parameters:', diff_fit)
 diff_analytic_soln_survival = produce_diff_soln_survival(diff_fit, T, xs)
 diff_analytic_soln = produce_diff_soln(diff_fit, T, xs)
 
@@ -150,7 +150,7 @@ subdiff_anal_fit = scipy.optimize.fmin_slsqp(lsq_subdiff_analytic, subdiff_anal_
                                 bounds=[(0.0, np.Inf)], epsilon = 1.0e-3, acc=1.0e-6, full_output=True)
 subdiff_anal_sq_err = subdiff_anal_fit[1]
 subdiff_anal_fit = subdiff_anal_fit[0]
-print 'Subdiffusion analytic fit parameters:', subdiff_anal_fit
+print('Subdiffusion analytic fit parameters:', subdiff_anal_fit)
 anal_sub_soln = produce_subdiff_analytic_soln(subdiff_anal_fit, T, xs)
 anal_sub_soln_survival = produce_subdiff_analytic_survival(subdiff_anal_fit, T, xs)
 

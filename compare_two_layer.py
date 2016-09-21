@@ -21,7 +21,7 @@ V_2_init = np.zeros([n_points, n_points])
 S_init = 2.*np.ones([n_points, n_points])
 I_init = np.zeros([n_points, n_points])
 
-T = 0.5
+T = 0.25
 
 alpha = 0.75
 D_alpha = 0.05
@@ -38,14 +38,15 @@ k_2 = dT * 0.5
 infection_rate = dT * 2.
 clearance_rate = 0.
 
-dtrw_sub = DTRW_subdiffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, alpha, k_1, k_2, clearance_rate, infection_rate, history_length=history_length, boundary_condition = BC_periodic())
-dtrw = DTRW_diffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, r, k_1, k_2, clearance_rate, infection_rate, history_length=history_length, boundary_condition = BC_periodic())
+dtrw_sub = DTRW_diffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, r, k_1, k_2, clearance_rate, infection_rate)
+dtrw = DTRW_diffusive_with_transition([V_1_init, V_2_init, S_init, I_init], N, r, k_1, k_2, clearance_rate, infection_rate)
 
 print("Solving for", N, "steps, dT =", dT, ", diffusion matching gives r =", r)
 
 start = time.clock()
 dtrw.solve_all_steps()
-dtrw_sub.solve_all_steps()
+#dtrw_sub.solve_all_steps_with_Q()
+dtrw.solve_all_steps()
 end = time.clock()
 
 print("Time for solution: ", end - start)
@@ -60,50 +61,34 @@ fig = plt.figure(figsize=(32,16))
 ax1 = fig.add_subplot(2, 4, 1, projection='3d')
 wframe = ax1.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
 ax1.set_zlim(0.,10.)
-ax1.set_zlabel('Concentration')
-ax1.set_title('Virus, outer layer')
 
 ax2 = fig.add_subplot(2, 4, 2, projection='3d')
 wframe2 = ax2.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
 ax2.set_zlim(0.,10.)
-ax2.set_zlabel('Concentration')
-ax2.set_title('Virus, inner layer')
 
 ax3 = fig.add_subplot(2, 4, 3, projection='3d')
 wframe3 = ax3.plot_surface(Xs, Ys, S_init, rstride=5, cstride=5)
 ax3.set_zlim(0.,2.)
-ax3.set_zlabel('Concentration')
-ax3.set_title('Target cells, inner layer')
 
 ax4 = fig.add_subplot(2, 4, 4, projection='3d')
 wframe4 = ax4.plot_surface(Xs, Ys, I_init, rstride=5, cstride=5)
 ax4.set_zlim(0.,2,)
-ax4.set_zlabel('Concentration')
-ax4.set_title('Infected cells, inner layer')
 
 ax5 = fig.add_subplot(2, 4, 5, projection='3d')
 wframe5 = ax5.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
 ax5.set_zlim(0.,10.)
-ax5.set_zlabel('Concentration')
-ax5.set_title('Virus, outer layer, subdiffusive')
 
 ax6 = fig.add_subplot(2, 4, 6, projection='3d')
 wframe6 = ax6.plot_surface(Xs, Ys, V_1_init, rstride=5, cstride=5)
 ax6.set_zlim(0.,10.)
-ax6.set_zlabel('Concentration')
-ax6.set_title('Virus, inner layer, subdiffusive')
 
 ax7 = fig.add_subplot(2, 4, 7, projection='3d')
 wframe7 = ax7.plot_surface(Xs, Ys, S_init, rstride=5, cstride=5)
 ax7.set_zlim(0.,2.)
-ax7.set_zlabel('Concentration')
-ax7.set_title('Target cells, inner layer, subdiffusive')
 
 ax8 = fig.add_subplot(2, 4, 8, projection='3d')
 wframe8 = ax8.plot_surface(Xs, Ys, I_init, rstride=5, cstride=5)
 ax8.set_zlim(0.,2.)
-ax8.set_zlabel('Concentration')
-ax8.set_title('Infected cells, inner layer, subdiffusive')
 
 V_1 = dtrw.Xs[0]
 V_2 = dtrw.Xs[1]
@@ -148,24 +133,7 @@ def update(i, ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, fig):
     wframe8 = ax8.plot_surface(Xs, Ys, I_sub[:,:,i], rstride=5, cstride=5, color='Green', alpha=0.2)
     ax8.set_zlim(0.,2.)
     
-    ax1.set_zlabel('Concentration')
-    ax2.set_zlabel('Concentration')
-    ax3.set_zlabel('Concentration')
-    ax4.set_zlabel('Concentration')
-    ax5.set_zlabel('Concentration')
-    ax6.set_zlabel('Concentration')
-    ax7.set_zlabel('Concentration')
-    ax8.set_zlabel('Concentration')
-    
-    ax1.set_title('Virus, outer layer')
-    ax2.set_title('Virus, inner layer')
-    ax3.set_title('Target cells, inner layer')
-    ax4.set_title('Infected cells, inner layer')
-    ax5.set_title('Virus, outer layer, subdiffusive')
-    ax6.set_title('Virus, inner layer, subdiffusive')
-    ax7.set_title('Target cells, inner layer, subdiffusive')
-    ax8.set_title('Infected cells, inner layer, subdiffusive')
-    
+ 
     #cset = ax.contour(Xs, Ys, X[:,:,i], zdir='z', offset=plot_min, cmap=cm.coolwarm)
     #cset = ax.contour(Xs, Ys, X[:,:,i], zdir='x', offset=0., cmap=cm.coolwarm)
     #cset = ax.contour(Xs, Ys, X[:,:,i], zdir='y', offset=1., cmap=cm.coolwarm)
@@ -184,10 +152,11 @@ anim = animation.FuncAnimation(fig, update,
 
 import inspect, os, subprocess
 exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentframe())))[0]
-git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
 
+#git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
+git_tag = 1
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
 print("Saving animation to", file_name)
-
+pdb.set_trace()
 anim.save(file_name, fps=24)#, extra_args=['-vcodec', 'libx264'])
 #plt.show()

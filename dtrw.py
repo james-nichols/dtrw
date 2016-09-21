@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 import math
 import numpy as np
 import scipy as sp
@@ -331,8 +329,8 @@ class DTRW(object):
             next_X = X[:,:,self.n-1] - r * flux - omega * X[:,:,self.n-1] + nu
            
             if (flux < 0.).sum() == True:
-                print "Step", i, "has -ve flux"
-                print flux
+                print("Step", i, "has -ve flux")
+                print(flux)
              
             # Now we add the spatial jumps
             # First multiply by all the left jump probabilities
@@ -623,7 +621,7 @@ class DTRW_SIR(DTRW_compartment):
 
         if len(X_inits) != 3:
             # Error!
-            print "Need three initial points"
+            print("Need three initial points")
             raise SystemExit 
 
         super(DTRW_SIR, self).__init__(X_inits, T, dT)

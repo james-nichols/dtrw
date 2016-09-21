@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -28,7 +28,7 @@ for V in Vs:
         corrections[i] = sum([ dtrw.K[j+1] / xi[i-j:i].prod() for j in range(i+1)]) 
         xi[i] = 1. - V * ( sum([ dtrw.K[j+1] / xi[i-j:i].prod() for j in range(i+1)]) )
 
-    print "At V=", V, "xi is", xi
-    print "At V=", V, "corr is", corrections
+    print("At V=", V, "xi is", xi)
+    print("At V=", V, "corr is", corrections)
     plt.plot(xi)
 plt.show()

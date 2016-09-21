@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -19,7 +19,7 @@ class DTRW_PBPK(DTRW_compartment):
         
         if len(X_inits) != 6:
             # Error!
-            print "Need six initial points"
+            print("Need six initial points")
             raise SystemExit
 
         super(DTRW_PBPK, self).__init__(X_inits, T, dT)
@@ -70,7 +70,7 @@ class DTRW_PBPK_anom(DTRW_compartment):
         
         if len(X_inits) != 6:
             # Error!
-            print "Need six initial points"
+            print("Need six initial points")
             raise SystemExit
 
         super(DTRW_PBPK_anom, self).__init__(X_inits, T, dT)
@@ -87,6 +87,8 @@ class DTRW_PBPK_anom(DTRW_compartment):
         self.alpha = alpha
         self.Ks[2] = calc_sibuya_kernel(self.N+1, self.alpha)
         self.Ks[5] = calc_sibuya_kernel(self.N+1, self.alpha)
+
+        self.anom_rates = [None] * self.n_species
         self.anom_rates[2] = self.Qs[2] / (self.Vs[2] * self.Rs[2])
         self.anom_rates[5] = self.Qs[2] / (self.Vs[-1])
         

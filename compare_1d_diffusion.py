@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 import numpy as np
 import time
@@ -29,18 +29,18 @@ N = int(math.floor(T / dT))
 # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
 r = dT / (dX * dX / (2.0 * D_alpha))
 
-print "Diffusive sim with dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
+print("Diffusive sim with dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r)
 
 dtrw = DTRW_diffusive(X_init, N, r)
 dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, history_length=N)
 
-print "Left jump probs: ", dtrw.lam[:,:,0]
-print "Right jump probs: ", dtrw.lam[:,:,1]
+#print "Left jump probs: ", dtrw.lam[:,:,0]
+#print "Right jump probs: ", dtrw.lam[:,:,1]
 
 dtrw.solve_all_steps()
 dtrw_sub.solve_all_steps()
 
-print "Solutions computed, now creating animation..."
+print("Solutions computed, now creating animation...")
 
 xs = np.linspace(0., L, n_points, endpoint=False)
 
@@ -74,7 +74,7 @@ exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentfr
 git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
-print "Saving animation to", file_name
+print("Saving animation to", file_name)
 
 anim.save(file_name, fps=24)
 plt.show()

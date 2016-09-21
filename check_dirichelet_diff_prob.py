@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 import numpy as np
 import scipy.interpolate, scipy.special
@@ -35,7 +35,7 @@ for l in n_points:
     X_init = np.zeros(np.floor(L / dX))
     xs = np.arange(0.0, L, dX)
         
-    print l, N, r
+    print(l, N, r)
 
     dtrw = DTRW_diffusive(X_init, N, r, history_length=N, boundary_condition=BC_Dirichelet_LHS([LHS]))
     dtrw.solve_all_steps()

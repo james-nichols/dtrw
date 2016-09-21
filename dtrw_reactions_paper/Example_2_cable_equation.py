@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -70,15 +70,15 @@ for dX in dXs:
     ts = np.array(np.arange(N) * dT)
     ts_1 = np.array(np.arange(N_1) * dT)
 
-    print "Solving DTRW subdiff for dX =", dX, "dT =", dT, "r =", r, "alpha =", alpha_1, "N =", N_1
+    print("Solving DTRW subdiff for dX =", dX, "dT =", dT, "r =", r, "alpha =", alpha_1, "N =", N_1)
 
     bc = BC_zero_flux()
 
     dtrw_sub_1 = DTRW_subdiffusive_two_way([a_init], N_1, alpha_1, k_1 * dT, r=r, history_length=N_1, boundary_condition=bc)
 
-    print "Exp case solved"
+    print("Exp case solved")
     dtrw_sub_1.solve_all_steps()
-    print "alpha =", alpha_1, "case solved"
+    print("alpha =", alpha_1, "case solved")
     
     dtrw_file_name_alpha_1 = "CableEq_DTRW_dT_{0:f}_dX_{1:f}_alpha_{2:f}.csv".format(dT, dX, alpha_1)
     np.savetxt("z_" + dtrw_file_name_alpha_1, dtrw_sub_1.Xs[0][0,:,-1], delimiter=",")

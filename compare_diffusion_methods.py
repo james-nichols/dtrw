@@ -28,10 +28,10 @@ N = int(math.floor(T / dT))
 dtrw = DTRW_diffusive(X_init, N, r)
 dtrw_X = DTRW_diffusive(X_init, N, r, history_length=N)
 
-print dtrw.psi, dtrw.psi.sum()
-print dtrw.Phi
-print dtrw.K
-print "solving for", N, "time steps"
+print(dtrw.psi, dtrw.psi.sum())
+print(dtrw.Phi)
+print(dtrw.K)
+print("solving for", N, "time steps")
 
 dtrw.solve_all_steps()
 # Note that for the other solver we solve using the arrival densities, rather than the memory
@@ -105,7 +105,7 @@ exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentfr
 git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
-print "Saving animation to", file_name
+print("Saving animation to", file_name)
 
 anim.save(file_name, fps=24)
 plt.show()

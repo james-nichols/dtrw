@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -37,7 +37,7 @@ D_alpha = dX * dX / (2.0 * pow(dT, alpha))
 # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
 r = dT / (dX * dX / (2.0 * D_alpha))
 
-print "Diffusive sim with D_alpha =", D_alpha, "dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r
+print("Diffusive sim with D_alpha =", D_alpha, "dT =", dT, "N =", N, "alpha =", alpha, "diffusion matching r =", r)
 g = 10.
 k = 1.5
 bc_constant = g * dX / (D_alpha * pow(k, 1.-alpha))
@@ -67,7 +67,7 @@ dtrw_dir.solve_all_steps()
 dtrw_bal = DTRW_subdiffusive_fedotov_death(X_init, N, alpha, dT*k, history_length, boundary_condition=fed_bal_bc)
 dtrw_bal.solve_all_steps()
 
-print "Solutions computed, now creating animation..."
+print("Solutions computed, now creating animation...")
 
 lo = 0 
 hi = 50 #n_points-1 
@@ -93,9 +93,9 @@ def update(i, line1, line2, line3, line4):
     plt.ylim(0., max(dtrw.Xs[0][:,:,i].max(), analytic_soln.max()))
     plt.ylim(0., max(dtrw.Xs[0][:,lo:hi,i].max()/p_0, analytic_soln[lo:hi].max()/p_0))
 
-    print "Fed", (dtrw.Xs[0][:,:,i] - analytic_soln).sum()
-    print "Bal", (dtrw_bal.Xs[0][:,:,i] - analytic_soln).sum()
-    print "Dir", (dtrw_dir.Xs[0][:,:,i] - analytic_soln).sum()
+    print("Fed", (dtrw.Xs[0][:,:,i] - analytic_soln).sum())
+    print("Bal", (dtrw_bal.Xs[0][:,:,i] - analytic_soln).sum())
+    print("Dir", (dtrw_dir.Xs[0][:,:,i] - analytic_soln).sum())
     return line1, line2, line3, line4
 
 # call the animator. blit=True means only re-draw the parts that have changed.
@@ -107,7 +107,7 @@ exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentfr
 git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
-print "Saving animation to", file_name
+print("Saving animation to", file_name)
 
 #anim.save(file_name, fps=24)
 plt.show()

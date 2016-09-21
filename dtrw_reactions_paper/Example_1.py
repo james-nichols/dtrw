@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -50,7 +50,7 @@ dT = pow(dX * dX / (2. * D_alpha), 1./alpha)
 N = int(math.floor(T / dT))
 history_length = N
 
-print "Running... alpha =", alpha, ", T =", T, ", L =", L, ", dX =", dX, ", dT =", dT, ", N =", N, ", k =", k
+print("Running... alpha =", alpha, ", T =", T, ", L =", L, ", dX =", dX, ", dT =", dT, ", N =", N, ", k =", k)
 
 # If we even want to use this at all...
 bc_constant = g * dX / (D_alpha * pow(k, 1.-alpha))
@@ -82,5 +82,5 @@ linf_file = open("linf_grid_{0:f}_{1:f}.txt".format(alpha, k), 'a')
 l2_file.write("L {0:f} dX {1:f} : {2:e}\n".format(L, dX, l2_dist))
 linf_file.write("L {0:f} dX {1:f} : {2:e}\n".format(L, dX, linf_dist))
 
-print "Balance mthd \t {0:e} \t {1:e} \t {2:e} \t {3:e}".format(l2[-1] * dX, linf[-1], l2_dist, linf_dist)
+print("Balance mthd \t {0:e} \t {1:e} \t {2:e} \t {3:e}".format(l2[-1] * dX, linf[-1], l2_dist, linf_dist))
 

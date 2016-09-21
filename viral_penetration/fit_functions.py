@@ -1,5 +1,4 @@
-
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -52,11 +51,11 @@ def produce_subdiff_analytic_survival(params, T, xs):
 
 def lsq_subdiff_analytic(params, T, x_fit, y_fit):
 
-    print "Subdiff analytic params: ", params[0],
+    print("Subdiff analytic params: ", params[0], end=' ')
     fit = produce_subdiff_analytic_survival(params, T, x_fit)
         
     sq_err = ((fit - y_fit) * (fit - y_fit)).sum()
-    print "Square err:", sq_err
+    print("Square err:", sq_err)
     return sq_err
 
 def produce_subdiff_soln(params, T, L, dX, history_length=0):
@@ -78,7 +77,7 @@ def produce_subdiff_soln(params, T, L, dX, history_length=0):
     xs = np.arange(0.0, L+dX, dX)
     X_init = np.zeros(xs.shape)
     
-    print 'N:', N, 'r:', r, 
+    print('N:', N, 'r:', r, end=' ') 
     dtrw_sub = DTRW_subdiffusive(X_init, N, alpha, r = r, history_length=history_length, boundary_condition=BC_Dirichelet_LHS([LHS]))
     dtrw_sub.solve_all_steps()
     
@@ -113,7 +112,7 @@ def produce_diff_soln_survival(params, T, xs):
 
 def lsq_subdiff(params, T, L, dX, x_fit, y_fit, history_length=0):
 
-    print "Subdiff params: ", params[0], params[1]
+    print("Subdiff params: ", params[0], params[1])
     #soln = produce_subdiff_soln(params, T, L, dX)
     # If we're fitting to a survival function, we must fit the partial integral of the solution...
     soln = produce_subdiff_soln_survival(params, T, L, dX, history_length)
@@ -123,7 +122,7 @@ def lsq_subdiff(params, T, L, dX, x_fit, y_fit, history_length=0):
     fit = (interp(x_fit).flatten())
     goal = (y_fit)
     sq_err = ((fit - goal) * (fit - goal)).sum()
-    print "Square err:", sq_err
+    print("Square err:", sq_err)
     return sq_err
 
 def lsq_diff(params, T, x_fit, y_fit):

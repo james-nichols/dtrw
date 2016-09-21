@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -115,7 +115,7 @@ for dX in dXs:
     # Calculate r for diffusive case so as to get the *same* dT as the subdiffusive case
     omega = dT / (dX * dX / (2.0 * D_alpha))
 
-    print "Solving DTRW subdiff for dX =", dX, "dT =", dT, "r =", r, "alpha =", alpha_1, "N =", N
+    print("Solving DTRW subdiff for dX =", dX, "dT =", dT, "r =", r, "alpha =", alpha_1, "N =", N)
 
     bc = BC_zero_flux()
 

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 launch_script_name = "launch_example_1.sh"
 launch_script_file = open(launch_script_name, 'w')

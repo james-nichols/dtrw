@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -47,7 +47,7 @@ depth = np.array([], dtype=np.float64)
 
 with open('SMEG_Data/PenetrationMLoadnewestOMITAngelafixed.csv', 'rb') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
-    labels = reader.next()
+    labels = next(reader)
     for row in reader:
         image_index.append(row[0])
         p24 = append_string_as_int(p24, row[4]) 
@@ -96,7 +96,7 @@ xs = np.arange(0.0, L+dX, dX)
 diff_init_params = [D_alpha]
 diff_fit = scipy.optimize.fmin_slsqp(lsq_diff, diff_init_params, args=(T, surv_func_x, surv_func_y), \
                                 bounds=[(0.0, np.Inf)], epsilon = 1.0e-8, acc=1.0e-6)
-print 'Diffusion fit parameters:', diff_fit
+print('Diffusion fit parameters:', diff_fit)
 diff_analytic_soln_survival = produce_diff_soln_survival(diff_fit, T, xs)
 diff_analytic_soln = produce_diff_soln(diff_fit, T, xs)
 
@@ -107,7 +107,7 @@ history_truncation = 200
 subdiff_init_params = [D_alpha, alpha]
 subdiff_fit = scipy.optimize.fmin_slsqp(lsq_subdiff, subdiff_init_params, args=(T, 4.0 * L, dX, surv_func_x, surv_func_y, history_truncation), \
                                 bounds=[(0.0, 50.0),(0.48, 1.0)], epsilon = 1.0e-8, acc=1.0e-6)
-print 'Subdiffusion fit parameters:', subdiff_fit
+print('Subdiffusion fit parameters:', subdiff_fit)
 
 dtrw_sub_soln = produce_subdiff_soln(subdiff_fit, T, 4.0*L, dX)
 dtrw_sub_soln_survival = produce_subdiff_soln_survival(subdiff_fit, T, 4.0*L, dX)
@@ -118,7 +118,7 @@ dtrw_sub_soln_survival = produce_subdiff_soln_survival(subdiff_fit, T, 4.0*L, dX
 subdiff_anal_init_params = [D_alpha]
 subdiff_anal_fit = scipy.optimize.fmin_slsqp(lsq_subdiff_analytic, subdiff_anal_init_params, args=(T, surv_func_x, surv_func_y), \
                                 bounds=[(0.0, np.Inf)], epsilon = 1.0e-6, acc=1.0e-6)
-print 'Subdiffusion analytic fit parameters:', subdiff_anal_fit
+print('Subdiffusion analytic fit parameters:', subdiff_anal_fit)
 anal_sub_soln = produce_subdiff_analytic_soln(subdiff_anal_fit, T, xs)
 anal_sub_soln_survival = produce_subdiff_analytic_survival(subdiff_anal_fit, T, xs)
 

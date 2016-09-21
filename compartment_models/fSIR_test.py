@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -30,7 +30,7 @@ dtrw_sir_anom = DTRW_SIR(initial, T, dT, lam, omega, gamma, mu, alpha)
 
 dtrw_sir.solve_all_steps()
 dtrw_sir_anom.solve_all_steps()
-pdb.set_trace()
+
 fig = plt.figure(figsize=(8,8))
 plt.xlim(0,T)
 plt.ylim(0,1.0)

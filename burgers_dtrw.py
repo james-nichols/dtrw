@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 import numpy as np
 import time
@@ -55,14 +55,14 @@ beta = 2.0 * dX
 dtrw = DTRW_burgers([X_init], N, r, k, history_length=history_length, boltz_beta=beta, boundary_condition = BC_zero_flux())
 dtrw_no_boltz = DTRW_burgers([X_init], N, r, k, history_length=history_length, boltz_beta=0.0, boundary_condition = BC_zero_flux())
 
-print "Solving for", N, "steps, dT =", dT, ", diffusion matching gives r =", r
+print("Solving for", N, "steps, dT =", dT, ", diffusion matching gives r =", r)
 
 start = time.clock()
 dtrw.solve_all_steps()
 dtrw_no_boltz.solve_all_steps()
 end = time.clock()
 
-print "Time for solution: ", end - start
+print("Time for solution: ", end - start)
 
 X = dtrw.Xs[0]
 Xb = dtrw_no_boltz.Xs[0]
@@ -89,7 +89,7 @@ exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentfr
 git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
-print "Saving animation to", file_name
+print("Saving animation to", file_name)
 
 #anim.save(file_name, fps=24)#, extra_args=['-vcodec', 'libx264'])
 plt.show()

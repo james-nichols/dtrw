@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 import numpy as np
 import time
@@ -94,14 +94,14 @@ r_diff = [mu, nu]
 dtrw_sub = DTRW_subdiffusive_turing_example([X_init, Y_init], N, alpha, a,b,c,d, r=r_diff)
 dtrw = DTRW_diffusive_turing_example([X_init, Y_init], N, r, a,b,c,d, r=r_diff)
 
-print "Solving for", N, "steps, dT =", dT, ", diffusion matching gives r =", r
+print("Solving for", N, "steps, dT =", dT, ", diffusion matching gives r =", r)
 
 start = time.clock()
 dtrw.solve_all_steps()
 dtrw_sub.solve_all_steps()
 end = time.clock()
 
-print "Time for solution: ", end - start
+print("Time for solution: ", end - start)
 
 xs = np.linspace(0., L, n_points)
 ys = np.linspace(0., L, n_points)
@@ -158,7 +158,7 @@ exec_name =  os.path.splitext(os.path.basename(inspect.getfile(inspect.currentfr
 git_tag = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).replace('\n', '')
 
 file_name = '{0}_{1}.mp4'.format(exec_name, git_tag)
-print "Saving animation to", file_name
+print("Saving animation to", file_name)
 
 anim.save(file_name, fps=24)#, extra_args=['-vcodec', 'libx264'])
 plt.show()

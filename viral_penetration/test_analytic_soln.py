@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/local/bin/python3
 
 # Libraries are in parent directory
 import sys
@@ -59,7 +59,7 @@ plt.legend([line1, line2, line3], ["Analytic Soln", "DTRW Soln", "DTRW Soln doub
 pp.savefig()
 pp.close()
 
-print "Result saved in ", pdf_name
+print("Result saved in ", pdf_name)
 
 #plt.show()
 
