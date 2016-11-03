@@ -10,19 +10,22 @@ import math
 import random
 import numpy as np
 import scipy
+import matplotlib
+# Force matplotlib to not use any Xwindows backend.
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from dtrw import *
 import pdb
 
-import mpmath
-
 def analytic_solve(params, T, xs):
     # Use meijer-G function to calculate subdiffusion for alpha = 1/2
+    import mpmath
+
     D_alpha = params[0]
     
     integrand = lambda u: 1. / math.sqrt(8 * pow(math.pi,3) * D_alpha * math.sqrt(T)) * float(mpmath.meijerg([[],[]], [[0, 0.25, 0.5],[]], pow(u,4) / (256. * D_alpha * D_alpha * T)))
-     
+
     return np.vectorize(lambda x: integrand(x))(xs) #1.0 - 2.0 * np.vectorize(lambda x: scipy.integrate.quad(integrand, 0., x)[0])(xs)
 
 ####################################################################
