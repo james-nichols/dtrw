@@ -160,12 +160,12 @@ for alpha in alphas:
 
     analytic_soln = at.ix[:,(at.ix['Time'] == T) & (at.ix['Alpha'] == alpha)].values[2:].flatten()
     
-    mc_start = time.time()
+    mc_start = time.clock()
     mc_soln, n = mc_solve(xs, N, num_t, alpha)
-    mc_end = time.time()
+    mc_end = time.clock()
 
     dtrw_soln = dtrw_solve(xs, num_t, alpha)
-    dtrw_end = time.time()
+    dtrw_end = time.clock()
 
     mc_times.append(mc_end - mc_start)
     dtrw_times.append(dtrw_end - mc_end)
