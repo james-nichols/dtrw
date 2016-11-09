@@ -152,6 +152,7 @@ def fast_mc_solve(xs, N, nt, alpha):
 def dtrw_solve(xs, num_t, alpha):
 
     X_init = np.zeros(xs.shape)
+    num_points = len(xs)
     if num_points % 2 == 0:
         X_init[num_points // 2] = 0.5
         X_init[num_points // 2 - 1] = 0.5
