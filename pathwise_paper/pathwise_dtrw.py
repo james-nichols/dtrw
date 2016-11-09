@@ -60,6 +60,7 @@ def inv_cum_sibuya_fast(x, survival):
 
 def mc_solve(xs, N, nt, alpha):
     density = np.zeros(xs.shape)
+    num_points = len(xs)
     jump_distribution = np.zeros(int(nt))
 
     survival_probs = make_survival_probs(alpha, nt)
@@ -124,100 +125,101 @@ def dtrw_solve(xs, num_t, alpha):
 ######################
 # Compare approaches #
 ######################
-
-# Number of MC points
-N = int(1e6)
-
-T = 0.5 
-D_alpha = 0.1
-dX = 2.e-2
-end_points = [-1., 1.]
-num_points = int((end_points[1]-end_points[0])/dX) 
-xs = np.linspace(end_points[0] + 0.5 * dX, end_points[1] - 0.5 * dX, num_points)
-
-dX_anal = 1.e-2
-num_points_anal = int((end_points[1]-end_points[0])/dX_anal) + 1
-xs_anal = np.linspace(end_points[0], end_points[1], num_points_anal)
-
-dtrw_times = []
-mc_times = []
-dtrw_solns = []
-mc_solns = []
-dtrw_diffs = []
-mc_diffs = []
-import pandas as pd
-
-analytic = pd.read_csv('Exact.csv')
-at = analytic.transpose()
-
-sns.set_style("whitegrid")
-
-alphas = [0.9, 0.8, 0.7, 0.6, 0.5]
-for alpha in alphas:
-
-    dT = pow((dX*dX/ (2.0 * D_alpha)), 1. / alpha)
-    num_t = int(T / dT)
-    T_grid = dT * num_t
-    #print("dT: ", dT, " Difference between final time step and final time: ", num_t * dT - T)
-    print(alpha, '\t', num_t * dT, ',\t', num_t, 'x', num_points, 'grid')
-
-    analytic_soln = at.ix[:,(at.ix['Time'] == T) & (at.ix['Alpha'] == alpha)].values[2:].flatten()
+if __name__ == "__main__":
     
-    mc_start = time.clock()
-    mc_soln, n = mc_solve(xs, N, num_t, alpha)
-    mc_end = time.clock()
+    # Number of MC points
+    N = int(1e6)
 
-    dtrw_soln = dtrw_solve(xs, num_t, alpha)
-    dtrw_end = time.clock()
+    T = 0.5 
+    D_alpha = 0.1
+    dX = 2.e-2
+    end_points = [-1., 1.]
+    num_points = int((end_points[1]-end_points[0])/dX) 
+    xs = np.linspace(end_points[0] + 0.5 * dX, end_points[1] - 0.5 * dX, num_points)
 
-    mc_times.append(mc_end - mc_start)
-    dtrw_times.append(dtrw_end - mc_end)
-   
-    np.savetxt('DTRW_{0}.csv'.format(alpha), dtrw_soln)
-    np.savetxt('MC_{0}_{1}.csv'.format(alpha, N), mc_soln)
+    dX_anal = 1.e-2
+    num_points_anal = int((end_points[1]-end_points[0])/dX_anal) + 1
+    xs_anal = np.linspace(end_points[0], end_points[1], num_points_anal)
+
+    dtrw_times = []
+    mc_times = []
+    dtrw_solns = []
+    mc_solns = []
+    dtrw_diffs = []
+    mc_diffs = []
+    import pandas as pd
+
+    analytic = pd.read_csv('Exact.csv')
+    at = analytic.transpose()
+
+    sns.set_style("whitegrid")
+
+    alphas = [0.9, 0.8, 0.7, 0.6, 0.5]
+    for alpha in alphas:
+
+        dT = pow((dX*dX/ (2.0 * D_alpha)), 1. / alpha)
+        num_t = int(T / dT)
+        T_grid = dT * num_t
+        #print("dT: ", dT, " Difference between final time step and final time: ", num_t * dT - T)
+        print(alpha, '\t', num_t * dT, ',\t', num_t, 'x', num_points, 'grid')
+
+        analytic_soln = at.ix[:,(at.ix['Time'] == T) & (at.ix['Alpha'] == alpha)].values[2:].flatten()
+        
+        mc_start = time.clock()
+        mc_soln, n = mc_solve(xs, N, num_t, alpha)
+        mc_end = time.clock()
+
+        dtrw_soln = dtrw_solve(xs, num_t, alpha)
+        dtrw_end = time.clock()
+
+        mc_times.append(mc_end - mc_start)
+        dtrw_times.append(dtrw_end - mc_end)
+       
+        np.savetxt('DTRW_{0}.csv'.format(alpha), dtrw_soln)
+        np.savetxt('MC_{0}_{1}.csv'.format(alpha, N), mc_soln)
 
 
-    if dX == dX_anal:
-        dtrw_diffs.append(np.abs(analytic_soln - np.interp(xs_anal, xs, dtrw_soln.T.flatten() / dX)))
-        mc_diffs.append(np.abs(analytic_soln - np.interp(xs_anal, xs, mc_soln.T / (N * dX)) ))
+        if dX == dX_anal:
+            dtrw_diffs.append(np.abs(analytic_soln - np.interp(xs_anal, xs, dtrw_soln.T.flatten() / dX)))
+            mc_diffs.append(np.abs(analytic_soln - np.interp(xs_anal, xs, mc_soln.T / (N * dX)) ))
 
-    if dX == 2e-2:
-        dtrw_diffs.append(np.abs(analytic_soln[1:-1:2] - dtrw_soln.T.flatten() / dX))
-        mc_diffs.append(np.abs(analytic_soln[1:-1:2] - mc_soln.T / (N * dX)))
-    
-    print("        DTRW      \t MC")
-    print("L_inf = {0:6.4e} \t {1:6.4e}".format(dtrw_diffs[-1].max(), mc_diffs[-1].max()))
-    print("l_2   = {0:6.4e} \t {1:6.4e}".format(np.linalg.norm(dtrw_diffs[-1]), np.linalg.norm(mc_diffs[-1])))
-    print("Time  = {0:6.4e} \t {1:6.4e}".format(dtrw_times[-1], mc_times[-1]))
+        if dX == 2e-2:
+            dtrw_diffs.append(np.abs(analytic_soln[1:-1:2] - dtrw_soln.T.flatten() / dX))
+            mc_diffs.append(np.abs(analytic_soln[1:-1:2] - mc_soln.T / (N * dX)))
+        
+        print("        DTRW      \t MC")
+        print("L_inf = {0:6.4e} \t {1:6.4e}".format(dtrw_diffs[-1].max(), mc_diffs[-1].max()))
+        print("l_2   = {0:6.4e} \t {1:6.4e}".format(np.linalg.norm(dtrw_diffs[-1]), np.linalg.norm(mc_diffs[-1])))
+        print("Time  = {0:6.4e} \t {1:6.4e}".format(dtrw_times[-1], mc_times[-1]))
 
-    c = sns.color_palette("colorblind", 10)
-    c = sns.color_palette("deep", 10)
+        c = sns.color_palette("colorblind", 10)
+        c = sns.color_palette("deep", 10)
 
-    f, ax = plt.subplots()#figsize=(4, 3))
-    plt.xlabel('x')
-    plt.ylabel('Solution')
-    plt.plot(xs_anal, analytic_soln.T, color=c[0], lw=5, label=r'Analytic')
-    plt.plot(xs, mc_soln / (N * dX), '-s', lw=1.5, ms=4, color=c[1], label='Monte Carlo')
-    plt.plot(xs, dtrw_soln / dX, '-o', lw=1.5, ms=4, color=c[2], label='DTRW')
-    plt.legend()
-    plt.savefig('soln_{0}_{1}.pdf'.format(alpha, N))
+        f, ax = plt.subplots()#figsize=(4, 3))
+        plt.xlabel('x')
+        plt.ylabel('Solution')
+        plt.plot(xs_anal, analytic_soln.T, color=c[0], lw=5, label=r'Analytic')
+        plt.plot(xs, mc_soln / (N * dX), '-s', lw=1.5, ms=4, color=c[1], label='Monte Carlo')
+        plt.plot(xs, dtrw_soln / dX, '-o', lw=1.5, ms=4, color=c[2], label='DTRW')
+        plt.legend()
+        plt.savefig('soln_{0}_{1}.pdf'.format(alpha, N))
 
+        f, ax = plt.subplots()#figsize=(4, 3))
+        ax.set(yscale="log")
+        plt.xlabel('x')
+        plt.ylabel('Difference, log scale')
+        plt.plot(xs, mc_diffs[-1], 's', markerfacecolor='none', mew=2, mec=c[1], label=r'|Monte Carlo - Analytic|')
+        plt.plot(xs, dtrw_diffs[-1], 'o', markerfacecolor='none', mew=2, mec=c[2],  label='|DTRW - Analytic|')
+        plt.legend()
+        plt.savefig('diff_{0}_{1}.pdf'.format(alpha, N))
+
+
+    #sns.set(style="whitegrid", palette="muted")
     f, ax = plt.subplots()#figsize=(4, 3))
     ax.set(yscale="log")
-    plt.xlabel('x')
-    plt.ylabel('Difference, log scale')
-    plt.plot(xs, mc_diffs[-1], 's', markerfacecolor='none', mew=2, mec=c[1], label=r'|Monte Carlo - Analytic|')
-    plt.plot(xs, dtrw_diffs[-1], 'o', markerfacecolor='none', mew=2, mec=c[2],  label='|DTRW - Analytic|')
+    plt.plot(alphas, mc_times, 's', markerfacecolor='none', mew=2, markersize=10, mec=c[1], label='Monte Carlo')
+    plt.plot(alphas, dtrw_times, 'o', markerfacecolor='none', mew=2, markersize=10, mec=c[2], label='DTRW')
+    plt.xlabel('Alpha')
+    plt.ylabel('Time, log scale')
     plt.legend()
-    plt.savefig('diff_{0}_{1}.pdf'.format(alpha, N))
-
-
-#sns.set(style="whitegrid", palette="muted")
-f, ax = plt.subplots()#figsize=(4, 3))
-ax.set(yscale="log")
-plt.plot(alphas, mc_times, 's', markerfacecolor='none', mew=2, markersize=10, mec=c[1], label='Monte Carlo')
-plt.plot(alphas, dtrw_times, 'o', markerfacecolor='none', mew=2, markersize=10, mec=c[2], label='DTRW')
-plt.xlabel('Alpha')
-plt.ylabel('Time, log scale')
-plt.legend()
-plt.savefig('dtrw_mc_time_{0}.pdf'.format(N))
+    plt.savefig('dtrw_mc_time_{0}.pdf'.format(N))
