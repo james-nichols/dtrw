@@ -103,6 +103,48 @@ def mc_solve(xs, N, nt, alpha):
 
     return density, n
 
+def fast_mc_solve(xs, N, nt, alpha):
+    density = np.zeros(xs.shape)
+    num_points = len(xs)
+    jump_distribution = np.zeros(int(nt))
+
+    survival_probs = make_survival_probs(alpha, nt)
+
+    n = 0
+    #while max(abs(density / float(n) - analytic_soln)) > epsilon:
+
+    ts = np.zeros(N)
+    k = np.zeros(N)
+    
+    pos = np.ones(N) * (num_points // 2)
+    # 0.5 chance of hitting the other point if we have an evenly spaced grid...
+    if num_points % 2 == 0:
+        pos = np.random.random_integers(num_points // 2 - 1, high=num_points // 2, size=N)
+    
+    remaining = N
+    passed = np.zeros(N, dtype=np.bool)
+    while remaining > 0:
+        # Need to generate more waiting times
+        ws = inv_cum_sibuya_fast(np.random.rand(remaining), survival_probs)
+
+        ts[~passed] += ws
+         
+        passed = (passed) | (ts > nt)
+        remaining = (~passed).sum()
+        k[~passed] += 1
+                
+        # Now do position
+        pos[~passed] += np.random.choice([-1,1], remaining)
+
+        # ...but have to take care of the boundary cases
+        pos[(pos > num_points - 1)] = num_points - 1
+        pos[(pos < 0)] = 0
+
+    # Now make the density from the pos histogram
+    density = np.histogram(pos, range(num_points+1))
+
+    return density[0], n
+
 ################
 # DTRW Approach
 ################
@@ -136,7 +178,7 @@ if __name__ == "__main__":
     end_points = [-1., 1.]
     num_points = int((end_points[1]-end_points[0])/dX) 
     xs = np.linspace(end_points[0] + 0.5 * dX, end_points[1] - 0.5 * dX, num_points)
-
+    
     dX_anal = 1.e-2
     num_points_anal = int((end_points[1]-end_points[0])/dX_anal) + 1
     xs_anal = np.linspace(end_points[0], end_points[1], num_points_anal)
@@ -166,7 +208,7 @@ if __name__ == "__main__":
         analytic_soln = at.ix[:,(at.ix['Time'] == T) & (at.ix['Alpha'] == alpha)].values[2:].flatten()
         
         mc_start = time.clock()
-        mc_soln, n = mc_solve(xs, N, num_t, alpha)
+        mc_soln, n = fast_mc_solve(xs, N, num_t, alpha)
         mc_end = time.clock()
 
         dtrw_soln = dtrw_solve(xs, num_t, alpha)
