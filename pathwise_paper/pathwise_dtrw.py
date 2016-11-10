@@ -252,7 +252,7 @@ if __name__ == "__main__":
         plt.ylabel('Difference, log scale')
         plt.plot(xs, mc_diffs[-1], 's', markerfacecolor='none', mew=2, mec=c[1], label=r'|Monte Carlo - Analytic|')
         plt.plot(xs, dtrw_diffs[-1], 'o', markerfacecolor='none', mew=2, mec=c[2],  label='|DTRW - Analytic|')
-        plt.legend()
+        plt.legend(loc="lower left")
         plt.savefig('diff_{0}_{1}.pdf'.format(alpha, N))
 
 
