@@ -111,7 +111,6 @@ def fast_mc_solve(xs, N, nt, alpha):
     survival_probs = make_survival_probs(alpha, nt)
 
     n = 0
-    #while max(abs(density / float(n) - analytic_soln)) > epsilon:
 
     ts = np.zeros(N)
     k = np.zeros(N)
@@ -171,7 +170,7 @@ def dtrw_solve(xs, num_t, alpha):
 if __name__ == "__main__":
     
     # Number of MC points
-    N = int(1e6)
+    N = int(1e7)
 
     T = 0.5 
     D_alpha = 0.1
