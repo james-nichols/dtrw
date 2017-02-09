@@ -73,3 +73,6 @@ if __name__ == "__main__":
     plt.ylabel('Computation time, log scale')
     plt.legend()
     plt.savefig('dtrw_mc_T_comp_time_{0}.pdf'.format(N))
+
+    np.savetxt('mc_times_vary_T_{0}.csv'.format(N), mc_times)
+    np.savetxt('dtrw_times_vary_T_{0}.csv'.format(N), dtrw_times)

@@ -265,3 +265,7 @@ if __name__ == "__main__":
     plt.ylabel('Time, log scale')
     plt.legend()
     plt.savefig('dtrw_mc_time_{0}.pdf'.format(N))
+
+    np.savetxt('mc_times_{0}.csv'.format(N), mc_times)
+    np.savetxt('dtrw_times_{0}.csv'.format(N), dtrw_times)
+
